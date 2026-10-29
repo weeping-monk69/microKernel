@@ -1,0 +1,22 @@
+# Build output
+build/
+*.o
+*.bin
+*.elf
+*.iso
+
+# Debug/generated files
+*.log
+*.tmp
+
+# QEMU
+*.qcow2
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store

@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microkernel Roadmap — Theory + Practice</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--card2:#1c2128;--border:#30363d;--text:#e6edf3;--dim:#8b949e;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--orange:#d29922;--purple:#bc8cff;--cyan:#39d353;--pink:#f778ba;--yellow:#e3b341}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.top-bar{position:sticky;top:0;z-index:100;background:rgba(13,17,23,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.top-bar h1{font-size:20px;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.top-bar .stats{display:flex;gap:20px;align-items:center;font-size:14px}
+.stat{display:flex;align-items:center;gap:6px}
+.stat-num{font-weight:700;font-size:18px}
+.stat-num.g{color:var(--green)}.stat-num.b{color:var(--accent)}.stat-num.p{color:var(--purple)}
+.progress-ring{width:48px;height:48px;position:relative}
+.progress-ring svg{transform:rotate(-90deg)}
+.progress-ring circle{fill:none;stroke-width:4}
+.progress-ring .bg{stroke:var(--border)}
+.progress-ring .fg{stroke:var(--green);stroke-linecap:round;transition:stroke-dashoffset .5s}
+.progress-ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--green)}
+.controls{display:flex;gap:8px}
+.btn{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.danger:hover{border-color:var(--red);color:var(--red)}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.phase-progress{width:100%;height:6px;background:var(--border);border-radius:3px;margin:12px 0 0;overflow:hidden}
+.phase-progress-bar{height:100%;border-radius:3px;transition:width .4s;min-width:0}
+.filter-bar{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-size:13px;transition:all .2s}
+.filter-btn:hover,.filter-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
+.filter-btn.theory.active{border-color:var(--purple);color:var(--purple);background:rgba(188,140,255,.1)}
+.filter-btn.practice.active{border-color:var(--green);color:var(--green);background:rgba(63,185,80,.1)}
+.search-box{background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:20px;font-size:13px;width:200px;outline:none}
+.search-box:focus{border-color:var(--accent)}
+.phase{margin-bottom:32px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card)}
+.phase-header{padding:20px 24px;cursor:pointer;display:flex;align-items:center;gap:16px;user-select:none;transition:background .2s}
+.phase-header:hover{background:rgba(88,166,255,.03)}
+.phase-icon{font-size:28px;width:40px;text-align:center}
+.phase-info{flex:1}
+.phase-info h2{font-size:22px;font-weight:700;margin-bottom:4px}
+.phase-info p{font-size:14px;color:var(--dim)}
+.phase-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.tag.t{background:rgba(188,140,255,.15);color:var(--purple)}
+.tag.p{background:rgba(63,185,80,.15);color:var(--green)}
+.tag.fr{background:rgba(88,166,255,.15);color:var(--accent)}
+.tag.done{background:rgba(63,185,80,.25);color:var(--green)}
+.chevron{color:var(--dim);font-size:20px;transition:transform .3s}
+.phase.open .chevron{transform:rotate(90deg)}
+.phase-body{display:none;border-top:1px solid var(--border)}
+.phase.open .phase-body{display:block}
+.section{padding:16px 24px;border-bottom:1px solid var(--border)}
+.section:last-child{border-bottom:none}
+.section-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.section-header h3{font-size:17px;font-weight:600}
+.section-header .icon{font-size:18px}
+.task{display:flex;align-items:flex-start;gap:12px;padding:8px 12px;border-radius:8px;transition:background .15s;margin:2px 0}
+.task:hover{background:rgba(88,166,255,.04)}
+.task input[type=checkbox]{appearance:none;-webkit-appearance:none;width:20px;height:20px;min-width:20px;border:2px solid var(--border);border-radius:5px;cursor:pointer;position:relative;margin-top:2px;transition:all .2s}
+.task input[type=checkbox]:checked{background:var(--green);border-color:var(--green)}
+.task input[type=checkbox]:checked::after{content:"✓";position:absolute;color:#fff;font-size:13px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%)}
+.task.done .task-text{text-decoration:line-through;color:var(--dim)}
+.task-content{flex:1}
+.task-text{font-size:15px;line-height:1.5}
+.task-detail{font-size:13px;color:var(--dim);margin-top:3px;line-height:1.4}
+.task-tags{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap}
+.subtasks{margin-left:32px;border-left:2px solid var(--border);padding-left:12px;margin-top:4px}
+.subtask{display:flex;align-items:flex-start;gap:10px;padding:4px 8px;border-radius:6px;transition:background .15s}
+.subtask:hover{background:rgba(88,166,255,.03)}
+.subtask input[type=checkbox]{appearance:none;-webkit-appearance:none;width:16px;height:16px;min-width:16px;border:2px solid var(--border);border-radius:4px;cursor:pointer;position:relative;margin-top:3px;transition:all .2s}
+.subtask input[type=checkbox]:checked{background:var(--green);border-color:var(--green)}
+.subtask input[type=checkbox]:checked::after{content:"✓";position:absolute;color:#fff;font-size:10px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%)}
+.subtask.done .subtask-text{text-decoration:line-through;color:var(--dim)}
+.subtask-text{font-size:14px;line-height:1.5}
+.resource-link{color:var(--accent);text-decoration:none;font-size:13px}
+.resource-link:hover{text-decoration:underline}
+.milestone{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.2);border-radius:8px;padding:12px 16px;margin:8px 0}
+.milestone h4{color:var(--green);font-size:15px;margin-bottom:4px}
+.milestone p{font-size:13px;color:var(--dim)}
+.phase-count{font-size:13px;color:var(--dim);font-weight:600}
+.timeline{display:flex;gap:4px;margin:20px 0;flex-wrap:wrap}
+.timeline-item{flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;font-size:12px;transition:all .3s}
+.timeline-item.complete{border-color:var(--green);background:rgba(63,185,80,.08)}
+.timeline-item .t-phase{font-weight:700;font-size:14px;margin-bottom:4px}
+.timeline-item .t-pct{color:var(--green);font-weight:700}
+.notes-area{margin-top:8px}
+.notes-area textarea{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;font-family:inherit;font-size:13px;resize:vertical;min-height:50px;outline:none}
+.notes-area textarea:focus{border-color:var(--accent)}
+.notes-area label{font-size:12px;color:var(--dim);display:block;margin-bottom:4px}
+@media(max-width:768px){.top-bar{flex-wrap:wrap}.container{padding:12px}.phase-header{padding:14px 16px}.section{padding:12px 16px}}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>🔧 Microkernel Roadmap</h1>
+  <div class="stats">
+    <div class="progress-ring" id="mainRing">
+      <svg width="48" height="48"><circle class="bg" cx="24" cy="24" r="20"/><circle class="fg" cx="24" cy="24" r="20" stroke-dasharray="125.66" stroke-dashoffset="125.66" id="ringFg"/></svg>
+      <div class="pct" id="ringPct">0%</div>
+    </div>
+    <div class="stat"><span class="stat-num g" id="statDone">0</span><span>Done</span></div>
+    <div class="stat"><span class="stat-num b" id="statTotal">0</span><span>Total</span></div>
+    <div class="stat"><span class="stat-num p" id="statTheory">0</span><span>Theory</span></div>
+    <div class="stat"><span class="stat-num g" id="statPractice">0</span><span>Practice</span></div>
+  </div>
+  <div class="controls">
+    <button class="btn" onclick="exportProgress()">💾 Export</button>
+    <button class="btn" onclick="document.getElementById('importFile').click()">📂 Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importProgress(event)">
+    <button class="btn danger" onclick="resetProgress()">🗑 Reset</button>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="timeline" id="timeline"></div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn theory" data-filter="theory" onclick="setFilter('theory',this)">📘 Theory</button>
+  <button class="filter-btn practice" data-filter="practice" onclick="setFilter('practice',this)">🔨 Practice</button>
+  <button class="filter-btn" data-filter="incomplete" onclick="setFilter('incomplete',this)">⬜ Incomplete</button>
+  <input class="search-box" type="text" placeholder="Search tasks..." oninput="searchTasks(this.value)">
+</div>
+
+<div id="phases"></div>
+
+</div>
+
+<script>
+const ROADMAP = [
+  {
+    id:"p0", icon:"🎯", title:"Phase 0 — Foundations & Environment Setup",
+    desc:"Toolchain, QEMU, and foundational OS theory",
+    frs:["Prereq"],
+    color:"#58a6ff",
+    sections:[
+      {
+        type:"theory", title:"OS Fundamentals", icon:"📘",
+        tasks:[
+          {id:"p0t1",text:"Understand what an OS does: resource manager + abstraction layer",detail:"Read OSTEP Chapter 2 — Introduction to Operating Systems",subtasks:[
+            {id:"p0t1s1",text:"What is virtualization of CPU?"},
+            {id:"p0t1s2",text:"What is virtualization of memory?"},
+            {id:"p0t1s3",text:"What is concurrency and why does it matter?"},
+            {id:"p0t1s4",text:"What is persistence (filesystem)?"}
+          ]},
+          {id:"p0t2",text:"Understand the user ↔ kernel boundary",detail:"Read CSAPP Chapter 1 — A Tour of Computer Systems",subtasks:[
+            {id:"p0t2s1",text:"What is a process vs a program?"},
+            {id:"p0t2s2",text:"What is a context switch at a high level?"},
+            {id:"p0t2s3",text:"What is virtual memory at a high level?"}
+          ]},
+          {id:"p0t3",text:"Understand monolithic vs microkernel architecture",detail:"Read Liedtke 'On µ-Kernel Construction' paper",subtasks:[
+            {id:"p0t3s1",text:"Why do microkernels push drivers to user space?"},
+            {id:"p0t3s2",text:"What is the cost vs reliability tradeoff?"},
+            {id:"p0t3s3",text:"What is a Trusted Computing Base (TCB)?"},
+            {id:"p0t3s4",text:"Read seL4 system overview paper"}
+          ]},
+          {id:"p0t4",text:"Understand IPC as a core abstraction",detail:"Read OSTEP Chapter 31 — Interprocess Communication",subtasks:[
+            {id:"p0t4s1",text:"Why does IPC replace function calls in microkernels?"},
+            {id:"p0t4s2",text:"Sync vs async IPC tradeoffs"},
+            {id:"p0t4s3",text:"Read L4 IPC overview paper"}
+          ]},
+          {id:"p0t5",text:"Understand device drivers as servers",detail:"Read OSTEP Chapter 33 — I/O Devices + MINIX 3 design overview",subtasks:[
+            {id:"p0t5s1",text:"Why do drivers crash?"},
+            {id:"p0t5s2",text:"Why kernels shouldn't trust drivers"},
+            {id:"p0t5s3",text:"Interrupt storms and MMIO vs Port I/O"}
+          ]},
+          {id:"p0t6",text:"Understand failure models & fault containment",detail:"Read Erlang 'Let It Crash' philosophy + QNX architecture overview",subtasks:[
+            {id:"p0t6s1",text:"Fault containment as a design goal"},
+            {id:"p0t6s2",text:"Why restart > recover in microkernel design"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Environment Setup", icon:"🔨",
+        tasks:[
+          {id:"p0p1",text:"Install cross-compiler toolchain (x86_64-elf-gcc)",detail:"Need: GCC cross-compiler, NASM/GAS assembler, GNU ld linker",subtasks:[
+            {id:"p0p1s1",text:"Install or build x86_64-elf-gcc"},
+            {id:"p0p1s2",text:"Install NASM (Netwide Assembler)"},
+            {id:"p0p1s3",text:"Verify: x86_64-elf-gcc --version works"}
+          ]},
+          {id:"p0p2",text:"Install QEMU x86-64 emulator",detail:"This is your test machine — no real hardware needed",subtasks:[
+            {id:"p0p2s1",text:"Install qemu-system-x86_64"},
+            {id:"p0p2s2",text:"Test: qemu-system-x86_64 --version"},
+            {id:"p0p2s3",text:"Understand QEMU flags: -serial, -no-reboot, -d int"}
+          ]},
+          {id:"p0p3",text:"Install GRUB and xorriso (ISO creation)",subtasks:[
+            {id:"p0p3s1",text:"Install grub-mkrescue"},
+            {id:"p0p3s2",text:"Install xorriso"},
+            {id:"p0p3s3",text:"Test: grub-mkrescue --version"}
+          ]},
+          {id:"p0p4",text:"Set up project directory structure",subtasks:[
+            {id:"p0p4s1",text:"Create: kernel/ boot/ include/ drivers/ lib/ scripts/"},
+            {id:"p0p4s2",text:"Create Makefile with build + run targets"},
+            {id:"p0p4s3",text:"Create linker script (linker.ld)"},
+            {id:"p0p4s4",text:"Create GRUB config (grub.cfg)"}
+          ]},
+          {id:"p0p5",text:"Write design freeze document",detail:"Consolidate all design decisions into one reference",subtasks:[
+            {id:"p0p5s1",text:"Review FRD v3.0 (25 requirements)"},
+            {id:"p0p5s2",text:"Review LLD (design presentation)"},
+            {id:"p0p5s3",text:"Confirm all design decisions are locked"}
+          ]}
+        ],
+        milestone:{title:"Milestone: Environment Ready",desc:"make build produces no errors (even with empty kernel). QEMU launches."}
+      }
+    ]
+  },
+  {
+    id:"p1", icon:"🚀", title:"Phase 1 — Boot & Serial Output",
+    desc:"From power-on to printing 'Hello' on serial console",
+    frs:["FR01","FR02","FR25"],
+    color:"#3fb950",
+    sections:[
+      {
+        type:"theory", title:"Boot Process Theory", icon:"📘",
+        tasks:[
+          {id:"p1t1",text:"Understand CPU state at reset",detail:"Read Intel SDM Vol 3 Chapter 9 — Processor Initialization",subtasks:[
+            {id:"p1t1s1",text:"What is the reset vector (0xFFFFFFF0)?"},
+            {id:"p1t1s2",text:"What mode is the CPU in at startup (Real Mode)?"},
+            {id:"p1t1s3",text:"What does BIOS do before bootloader?"}
+          ]},
+          {id:"p1t2",text:"Understand ELF format and entry points",detail:"Read CSAPP Chapter 7 — Linking",subtasks:[
+            {id:"p1t2s1",text:"What is an ELF binary? Sections vs segments"},
+            {id:"p1t2s2",text:"Why _start ≠ main"},
+            {id:"p1t2s3",text:"What is a linker script and why do kernels need one?"}
+          ]},
+          {id:"p1t3",text:"Understand Multiboot2 protocol",detail:"Read Multiboot2 specification",subtasks:[
+            {id:"p1t3s1",text:"What goes in the Multiboot2 header?"},
+            {id:"p1t3s2",text:"What info does GRUB pass (EAX, EBX)?"},
+            {id:"p1t3s3",text:"What is the memory map tag?"}
+          ]},
+          {id:"p1t4",text:"Understand x86-64 mode transitions",detail:"Read Intel SDM: IA-32e mode overview",subtasks:[
+            {id:"p1t4s1",text:"Real Mode → Protected Mode → Long Mode sequence"},
+            {id:"p1t4s2",text:"What is PAE and why is it required?"},
+            {id:"p1t4s3",text:"What is the EFER MSR and LME bit?"},
+            {id:"p1t4s4",text:"Why you must identity-map before enabling paging"},
+            {id:"p1t4s5",text:"What is a higher-half kernel and why?"}
+          ]},
+          {id:"p1t5",text:"Understand serial port (UART 16550)",detail:"Read OSDev: Serial Ports",subtasks:[
+            {id:"p1t5s1",text:"Port I/O: IN/OUT instructions"},
+            {id:"p1t5s2",text:"COM1 base address (0x3F8)"},
+            {id:"p1t5s3",text:"Baud rate, line control, FIFO setup"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p1p1",text:"Write Multiboot2 header (boot.asm)",subtasks:[
+            {id:"p1p1s1",text:"Define multiboot2 magic, architecture, header_length, checksum"},
+            {id:"p1p1s2",text:"Add end tag"},
+            {id:"p1p1s3",text:"Verify header is in first 32KB of binary"}
+          ]},
+          {id:"p1p2",text:"Write _start in 32-bit assembly",subtasks:[
+            {id:"p1p2s1",text:"Set up temporary stack (mov esp, stack_top)"},
+            {id:"p1p2s2",text:"Save EBX (multiboot info pointer)"},
+            {id:"p1p2s3",text:"Verify EAX == 0x36D76289 (multiboot magic)"}
+          ]},
+          {id:"p1p3",text:"Set up initial page tables for long mode",subtasks:[
+            {id:"p1p3s1",text:"Create PML4 table (page-aligned, zeroed)"},
+            {id:"p1p3s2",text:"Create PDPT, PD entries"},
+            {id:"p1p3s3",text:"Identity map first 2MB (using 2MB huge pages)"},
+            {id:"p1p3s4",text:"Map higher-half (0xFFFF800000000000) to same physical memory"},
+            {id:"p1p3s5",text:"Set present + writable bits in all entries"}
+          ]},
+          {id:"p1p4",text:"Enable Long Mode and paging",subtasks:[
+            {id:"p1p4s1",text:"Enable PAE in CR4 (bit 5)"},
+            {id:"p1p4s2",text:"Load PML4 address into CR3"},
+            {id:"p1p4s3",text:"Set EFER.LME (MSR 0xC0000080, bit 8)"},
+            {id:"p1p4s4",text:"Enable paging: set CR0.PG (bit 31)"},
+            {id:"p1p4s5",text:"Load 64-bit GDT"},
+            {id:"p1p4s6",text:"Far jump to 64-bit code segment"}
+          ]},
+          {id:"p1p5",text:"Write 64-bit entry code",subtasks:[
+            {id:"p1p5s1",text:"Set up 64-bit RSP (new kernel stack)"},
+            {id:"p1p5s2",text:"Clear BSS section"},
+            {id:"p1p5s3",text:"Pass multiboot info pointer as argument (RDI)"},
+            {id:"p1p5s4",text:"Call kernel_main"}
+          ]},
+          {id:"p1p6",text:"Write linker script (linker.ld)",subtasks:[
+            {id:"p1p6s1",text:"Set entry point to _start"},
+            {id:"p1p6s2",text:"Define .text, .rodata, .data, .bss sections"},
+            {id:"p1p6s3",text:"Place kernel at higher-half virtual address"},
+            {id:"p1p6s4",text:"Export __bss_start, __bss_end symbols"}
+          ]},
+          {id:"p1p7",text:"Write serial output driver (kernel-mode, for early debug)",subtasks:[
+            {id:"p1p7s1",text:"serial_init(): configure COM1 baud rate, line control, FIFO"},
+            {id:"p1p7s2",text:"serial_putchar(c): wait for transmit ready, outb data"},
+            {id:"p1p7s3",text:"serial_print(str): loop over string"},
+            {id:"p1p7s4",text:"kprintf() basic implementation (optional)"}
+          ]},
+          {id:"p1p8",text:"Write kernel_main()",subtasks:[
+            {id:"p1p8s1",text:"Call serial_init()"},
+            {id:"p1p8s2",text:"Print 'Hello from kernel!' to serial"},
+            {id:"p1p8s3",text:"Halt in infinite loop (cli; hlt)"}
+          ]},
+          {id:"p1p9",text:"Build and test",subtasks:[
+            {id:"p1p9s1",text:"Compile with x86_64-elf-gcc -ffreestanding -mno-red-zone"},
+            {id:"p1p9s2",text:"Link with linker.ld"},
+            {id:"p1p9s3",text:"Create ISO with grub-mkrescue"},
+            {id:"p1p9s4",text:"Boot in QEMU: qemu-system-x86_64 -cdrom os.iso -serial stdio"},
+            {id:"p1p9s5",text:"Verify 'Hello from kernel!' appears on terminal"}
+          ]}
+        ],
+        milestone:{title:"Milestone: Boot Complete",desc:"QEMU boots your kernel, 'Hello from kernel!' prints on serial console. No triple fault."}
+      }
+    ]
+  },
+  {
+    id:"p2", icon:"🛡️", title:"Phase 2 — GDT, IDT & Interrupts",
+    desc:"CPU structure setup, exception handling, timer interrupt",
+    frs:["FR03","FR22","FR23"],
+    color:"#bc8cff",
+    sections:[
+      {
+        type:"theory", title:"CPU Structures & Interrupts Theory", icon:"📘",
+        tasks:[
+          {id:"p2t1",text:"Understand segmentation in x86-64",detail:"Read Intel SDM: Segmentation chapter",subtasks:[
+            {id:"p2t1s1",text:"What is the GDT (Global Descriptor Table)?"},
+            {id:"p2t1s2",text:"Segment selectors: index, TI, RPL"},
+            {id:"p2t1s3",text:"Code vs Data segment descriptors"},
+            {id:"p2t1s4",text:"Why GDT still matters in 64-bit (flat segmentation, but TSS)"},
+            {id:"p2t1s5",text:"What is DPL, CPL, RPL and how access checks work"}
+          ]},
+          {id:"p2t2",text:"Understand the TSS (Task State Segment)",detail:"Read Intel SDM: Task Management in 64-bit",subtasks:[
+            {id:"p2t2s1",text:"TSS structure: RSP0, RSP1, RSP2, IST entries"},
+            {id:"p2t2s2",text:"Why TSS is needed: Ring 3→0 stack switching"},
+            {id:"p2t2s3",text:"What is IST (Interrupt Stack Table)?"},
+            {id:"p2t2s4",text:"When to update TSS.RSP0 (every context switch)"}
+          ]},
+          {id:"p2t3",text:"Understand interrupts and exceptions",detail:"Read Intel SDM: IDT & Interrupt/Exception flow. Read CSAPP Ch 8.1-8.5",subtasks:[
+            {id:"p2t3s1",text:"What is the IDT (Interrupt Descriptor Table)?"},
+            {id:"p2t3s2",text:"256 entries, gate types: interrupt gate vs trap gate"},
+            {id:"p2t3s3",text:"CPU's automatic actions: push SS,RSP,RFLAGS,CS,RIP + error code"},
+            {id:"p2t3s4",text:"Exceptions 0-31: which push error codes? (8,10-14,17,21,29,30)"},
+            {id:"p2t3s5",text:"Difference between fault, trap, and abort"},
+            {id:"p2t3s6",text:"What causes a double fault? What causes a triple fault?"}
+          ]},
+          {id:"p2t4",text:"Understand the PIC (8259 Programmable Interrupt Controller)",detail:"Read OSDev: PIC",subtasks:[
+            {id:"p2t4s1",text:"Master PIC (IRQ 0-7) and Slave PIC (IRQ 8-15)"},
+            {id:"p2t4s2",text:"Why IRQs must be remapped (default 0-15 conflicts with exceptions)"},
+            {id:"p2t4s3",text:"Remap to vectors 32-47"},
+            {id:"p2t4s4",text:"EOI (End of Interrupt) — must send after handling"},
+            {id:"p2t4s5",text:"Masking individual IRQs"}
+          ]},
+          {id:"p2t5",text:"Understand the PIT (Programmable Interval Timer)",detail:"Read OSDev: PIT",subtasks:[
+            {id:"p2t5s1",text:"PIT channel 0 — system timer"},
+            {id:"p2t5s2",text:"Base frequency: 1193182 Hz"},
+            {id:"p2t5s3",text:"Setting divisor for desired frequency (e.g., 100 Hz)"},
+            {id:"p2t5s4",text:"Timer generates IRQ 0 → vector 32 after remap"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p2p1",text:"Implement GDT with TSS",subtasks:[
+            {id:"p2p1s1",text:"Define GDT entries: null, kernel CS, kernel DS, user CS, user DS, TSS"},
+            {id:"p2p1s2",text:"Create GDT descriptor (base + limit)"},
+            {id:"p2p1s3",text:"Load GDT with lgdt instruction"},
+            {id:"p2p1s4",text:"Reload segment registers (CS via far jump, DS/SS directly)"},
+            {id:"p2p1s5",text:"Initialize TSS structure with RSP0 and IST1"},
+            {id:"p2p1s6",text:"Load TSS with ltr instruction"}
+          ]},
+          {id:"p2p2",text:"Implement IDT",subtasks:[
+            {id:"p2p2s1",text:"Define IDT entry structure (16 bytes each in 64-bit)"},
+            {id:"p2p2s2",text:"Write assembly stubs for all 256 vectors"},
+            {id:"p2p2s3",text:"Stubs push vector number + dummy error code (for exceptions without one)"},
+            {id:"p2p2s4",text:"Stubs call common handler that saves all registers"},
+            {id:"p2p2s5",text:"Load IDT with lidt instruction"},
+            {id:"p2p2s6",text:"Set IST=1 for double fault handler (vector 8)"}
+          ]},
+          {id:"p2p3",text:"Implement exception handlers",subtasks:[
+            {id:"p2p3s1",text:"Common exception handler in C: print vector, error code, RIP, CR2"},
+            {id:"p2p3s2",text:"Division by zero (vector 0) → print and halt"},
+            {id:"p2p3s3",text:"Page fault (vector 14) → print CR2 and halt"},
+            {id:"p2p3s4",text:"General protection (vector 13) → print and halt"},
+            {id:"p2p3s5",text:"Double fault (vector 8) → kernel panic on IST stack"}
+          ]},
+          {id:"p2p4",text:"Initialize PIC (8259)",subtasks:[
+            {id:"p2p4s1",text:"Send ICW1-ICW4 initialization sequence to both PICs"},
+            {id:"p2p4s2",text:"Remap master to vector 32, slave to vector 40"},
+            {id:"p2p4s3",text:"Mask all IRQs except IRQ 0 (timer)"},
+            {id:"p2p4s4",text:"Write pic_send_eoi() function"}
+          ]},
+          {id:"p2p5",text:"Initialize PIT timer",subtasks:[
+            {id:"p2p5s1",text:"Set PIT channel 0 to rate generator mode"},
+            {id:"p2p5s2",text:"Calculate and set divisor for ~100 Hz"},
+            {id:"p2p5s3",text:"Write timer interrupt handler (vector 32)"},
+            {id:"p2p5s4",text:"Increment global tick counter"},
+            {id:"p2p5s5",text:"Send EOI after handling"},
+            {id:"p2p5s6",text:"Print tick count every N ticks to serial"}
+          ]},
+          {id:"p2p6",text:"Enable interrupts and test",subtasks:[
+            {id:"p2p6s1",text:"Execute sti to enable interrupts"},
+            {id:"p2p6s2",text:"Verify timer ticks appear on serial"},
+            {id:"p2p6s3",text:"Trigger division by zero — verify exception handler runs"},
+            {id:"p2p6s4",text:"Trigger page fault (access unmapped addr) — verify handler runs"}
+          ]}
+        ],
+        milestone:{title:"Milestone: Interrupts Working",desc:"Timer ticks print on serial. Exceptions caught and reported. No triple faults."}
+      }
+    ]
+  },
+  {
+    id:"p3", icon:"🧠", title:"Phase 3 — Physical Memory Manager",
+    desc:"Parse memory map, track and allocate physical frames",
+    frs:["FR05","FR06"],
+    color:"#d29922",
+    sections:[
+      {
+        type:"theory", title:"Physical Memory Theory", icon:"📘",
+        tasks:[
+          {id:"p3t1",text:"Understand physical memory layout",detail:"Read OSTEP Chapter 13 — Address Spaces",subtasks:[
+            {id:"p3t1s1",text:"Physical vs virtual addresses"},
+            {id:"p3t1s2",text:"Frames vs pages (frame = physical, page = virtual)"},
+            {id:"p3t1s3",text:"Why 4KB granularity?"},
+            {id:"p3t1s4",text:"Memory-mapped I/O regions vs usable RAM"}
+          ]},
+          {id:"p3t2",text:"Understand physical memory allocation strategies",detail:"Bitmap vs free list vs buddy system",subtasks:[
+            {id:"p3t2s1",text:"Bitmap allocator: 1 bit per frame, simple scan"},
+            {id:"p3t2s2",text:"Free list: linked list of free frames"},
+            {id:"p3t2s3",text:"Buddy allocator: power-of-2 splitting (Linux uses this)"},
+            {id:"p3t2s4",text:"Why bitmap is best for us: simple, deterministic, easy init"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p3p1",text:"Parse Multiboot2 memory map",subtasks:[
+            {id:"p3p1s1",text:"Walk Multiboot2 tags to find memory map tag (type 6)"},
+            {id:"p3p1s2",text:"Iterate memory map entries"},
+            {id:"p3p1s3",text:"Identify usable regions (type 1 = available)"},
+            {id:"p3p1s4",text:"Print memory map to serial for debugging"},
+            {id:"p3p1s5",text:"Calculate total usable RAM"}
+          ]},
+          {id:"p3p2",text:"Implement bitmap frame allocator",subtasks:[
+            {id:"p3p2s1",text:"Calculate bitmap size: total_frames / 8 bytes"},
+            {id:"p3p2s2",text:"Place bitmap in kernel BSS or after kernel end"},
+            {id:"p3p2s3",text:"Mark kernel frames as used"},
+            {id:"p3p2s4",text:"Mark reserved/MMIO regions as used"},
+            {id:"p3p2s5",text:"Mark bitmap's own frames as used"},
+            {id:"p3p2s6",text:"Implement pmm_alloc_frame(): scan for first 0 bit, set to 1"},
+            {id:"p3p2s7",text:"Implement pmm_free_frame(addr): set bit to 0"},
+            {id:"p3p2s8",text:"Add free frame counter"}
+          ]},
+          {id:"p3p3",text:"Test physical memory manager",subtasks:[
+            {id:"p3p3s1",text:"Print total frames, used frames, free frames"},
+            {id:"p3p3s2",text:"Allocate 10 frames — verify unique addresses"},
+            {id:"p3p3s3",text:"Free all 10 — verify free count restored"},
+            {id:"p3p3s4",text:"Verify kernel region frames cannot be allocated"}
+          ]}
+        ],
+        milestone:{title:"Milestone: Physical Memory Working",desc:"pmm_alloc_frame() returns valid, unique frame addresses. Free count accurate."}
+      }
+    ]
+  },
+  {
+    id:"p4", icon:"📦", title:"Phase 4 — Virtual Memory Manager",
+    desc:"Page tables, address spaces, memory isolation",
+    frs:["FR07","FR08","FR09","FR10","FR11"],
+    color:"#f85149",
+    sections:[
+      {
+        type:"theory", title:"Virtual Memory Theory", icon:"📘",
+        tasks:[
+          {id:"p4t1",text:"Understand virtual memory concepts",detail:"Read OSTEP Chapters 15-18 — VM Mechanisms + Paging",subtasks:[
+            {id:"p4t1s1",text:"Address translation: virtual → physical"},
+            {id:"p4t1s2",text:"Why virtual memory exists (isolation, abstraction)"},
+            {id:"p4t1s3",text:"Page table as translation structure"},
+            {id:"p4t1s4",text:"TLB (Translation Lookaside Buffer) — why it matters"}
+          ]},
+          {id:"p4t2",text:"Understand x86-64 4-level paging",detail:"Read Intel SDM: Paging chapter",subtasks:[
+            {id:"p4t2s1",text:"PML4 → PDPT → PD → PT → Physical frame"},
+            {id:"p4t2s2",text:"9-9-9-9-12 bit split of virtual address"},
+            {id:"p4t2s3",text:"Page table entry format: address bits, P, R/W, U/S, NX"},
+            {id:"p4t2s4",text:"CR3 register: holds PML4 physical address"},
+            {id:"p4t2s5",text:"invlpg instruction: flush single TLB entry"},
+            {id:"p4t2s6",text:"Why reloading CR3 flushes entire TLB"}
+          ]},
+          {id:"p4t3",text:"Understand page faults",detail:"Read OSTEP Chapter 20 — Beyond Physical Memory",subtasks:[
+            {id:"p4t3s1",text:"When does CPU generate a page fault?"},
+            {id:"p4t3s2",text:"Error code bits: P (present), W/R (write), U/S (user)"},
+            {id:"p4t3s3",text:"CR2: faulting virtual address"},
+            {id:"p4t3s4",text:"Demand paging concept (deferred to Phase 2)"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p4p1",text:"Implement page table manipulation functions",subtasks:[
+            {id:"p4p1s1",text:"vmm_map_page(pml4, vaddr, paddr, flags)"},
+            {id:"p4p1s2",text:"Walk/create intermediate tables (allocate PT frames on demand)"},
+            {id:"p4p1s3",text:"Set PTE with correct flags (P, R/W, U/S, NX)"},
+            {id:"p4p1s4",text:"vmm_unmap_page(pml4, vaddr) — clear PTE + invlpg"},
+            {id:"p4p1s5",text:"vmm_get_physical(pml4, vaddr) — walk tables, return PA"}
+          ]},
+          {id:"p4p2",text:"Set up kernel virtual memory",subtasks:[
+            {id:"p4p2s1",text:"Create proper kernel page tables (replace boot tables)"},
+            {id:"p4p2s2",text:"Map kernel code as RX (read-execute, no write)"},
+            {id:"p4p2s3",text:"Map kernel data as RW-NX (read-write, no execute)"},
+            {id:"p4p2s4",text:"Map kernel stack as RW-NX"},
+            {id:"p4p2s5",text:"Keep first page (0x0) unmapped (NULL guard)"},
+            {id:"p4p2s6",text:"Switch to new kernel page tables (reload CR3)"}
+          ]},
+          {id:"p4p3",text:"Implement address space management",subtasks:[
+            {id:"p4p3s1",text:"Define struct address_space { id, *pml4, ref_count, *threads }"},
+            {id:"p4p3s2",text:"as_create() — allocate PML4 frame, copy kernel mappings"},
+            {id:"p4p3s3",text:"as_switch(as) — load as->pml4 into CR3"},
+            {id:"p4p3s4",text:"as_destroy(as) — walk and free all user page table frames"},
+            {id:"p4p3s5",text:"as_map_user(as, vaddr, paddr, flags) — map with U/S=1"}
+          ]},
+          {id:"p4p4",text:"Implement page fault handler (Phase 1: kill thread)",subtasks:[
+            {id:"p4p4s1",text:"Register IDT vector 14 handler"},
+            {id:"p4p4s2",text:"Read CR2 (faulting address) and error code"},
+            {id:"p4p4s3",text:"If from user mode: log fault details, kill thread"},
+            {id:"p4p4s4",text:"If from kernel mode: kernel_panic() with register dump"}
+          ]},
+          {id:"p4p5",text:"Test virtual memory",subtasks:[
+            {id:"p4p5s1",text:"Map a page, write data, read back → matches"},
+            {id:"p4p5s2",text:"Unmap a page, read → page fault caught"},
+            {id:"p4p5s3",text:"Create two address spaces, map same VA to different PAs → isolation works"},
+            {id:"p4p5s4",text:"Verify kernel mapping present in all address spaces"}
+          ]}
+        ],
+        milestone:{title:"Milestone: Virtual Memory Working",desc:"Address spaces created/switched. Kernel mapped in all spaces. User isolation verified. Page faults caught."}
+      }
+    ]
+  },
+  {
+    id:"p5", icon:"⚡", title:"Phase 5 — Threads, Context Switch & Scheduler",
+    desc:"Thread creation, state machine, context switch, Round Robin scheduling",
+    frs:["FR12","FR13","FR14","FR15","FR16","FR17"],
+    color:"#39d353",
+    sections:[
+      {
+        type:"theory", title:"Threading & Scheduling Theory", icon:"📘",
+        tasks:[
+          {id:"p5t1",text:"Understand CPU virtualization",detail:"Read OSTEP Chapters 6-7 — Mechanism: Limited Direct Execution + Scheduling",subtasks:[
+            {id:"p5t1s1",text:"What is direct execution? Why is it 'limited'?"},
+            {id:"p5t1s2",text:"How timer interrupt enables preemption"},
+            {id:"p5t1s3",text:"Cooperative vs preemptive scheduling"}
+          ]},
+          {id:"p5t2",text:"Understand context switching deeply",detail:"Read OSTEP Chapter 6 section on context switch mechanism",subtasks:[
+            {id:"p5t2s1",text:"Which registers are caller-saved vs callee-saved (x86-64 ABI)"},
+            {id:"p5t2s2",text:"Why you only save callee-saved (RBX, RBP, R12-R15) + RSP"},
+            {id:"p5t2s3",text:"Interrupt frame: what CPU pushes automatically"},
+            {id:"p5t2s4",text:"Why each thread needs its own kernel stack"},
+            {id:"p5t2s5",text:"Why TSS.RSP0 must be updated on every switch"}
+          ]},
+          {id:"p5t3",text:"Understand scheduling algorithms",detail:"Read OSTEP Chapters 7-9 — Scheduling policies",subtasks:[
+            {id:"p5t3s1",text:"FIFO (First In First Out) — simple but convoy effect"},
+            {id:"p5t3s2",text:"Round Robin — time-slice based fairness"},
+            {id:"p5t3s3",text:"Priority scheduling — starvation risk"},
+            {id:"p5t3s4",text:"Why Round Robin is right for Phase 1"},
+            {id:"p5t3s5",text:"What is an idle thread and why it's necessary"}
+          ]},
+          {id:"p5t4",text:"Understand thread lifecycle",detail:"Read OSTEP Chapter 26 — Concurrency: Introduction",subtasks:[
+            {id:"p5t4s1",text:"Thread states: RUNNING, RUNNABLE, BLOCKED"},
+            {id:"p5t4s2",text:"Valid state transitions (state machine)"},
+            {id:"p5t4s3",text:"Thread creation: setup initial stack frame"},
+            {id:"p5t4s4",text:"Thread destruction: cleanup and resource release"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p5p1",text:"Define thread structure and state enum",subtasks:[
+            {id:"p5p1s1",text:"enum thread_state { RUNNING, RUNNABLE, BLOCKED }"},
+            {id:"p5p1s2",text:"struct thread: id, state, rsp, kernel_stack_top, next, waiting_for, send_queue, pending_msg, addr_space"},
+            {id:"p5p1s3",text:"Global: current_thread pointer"},
+            {id:"p5p1s4",text:"Thread ID counter (monotonically increasing, never reused)"}
+          ]},
+          {id:"p5p2",text:"Implement thread creation",subtasks:[
+            {id:"p5p2s1",text:"Allocate kernel stack (e.g., 2 pages = 8KB)"},
+            {id:"p5p2s2",text:"Set up initial stack frame: fake interrupt frame on kernel stack"},
+            {id:"p5p2s3",text:"Set RIP to entry function, RFLAGS with IF=1 (interrupts enabled)"},
+            {id:"p5p2s4",text:"Set RSP to top of kernel stack with frame pushed"},
+            {id:"p5p2s5",text:"Set state = RUNNABLE"},
+            {id:"p5p2s6",text:"Add to run queue"}
+          ]},
+          {id:"p5p3",text:"Implement run queue (FIFO linked list)",subtasks:[
+            {id:"p5p3s1",text:"struct run_queue { head, tail }"},
+            {id:"p5p3s2",text:"enqueue(thread) — add at tail"},
+            {id:"p5p3s3",text:"dequeue() — remove from head"},
+            {id:"p5p3s4",text:"is_empty() — check head == NULL"}
+          ]},
+          {id:"p5p4",text:"Implement context switch (assembly)",subtasks:[
+            {id:"p5p4s1",text:"context_switch(old, new): save RBX, RBP, R12-R15 on old's stack"},
+            {id:"p5p4s2",text:"Save RSP into old->rsp"},
+            {id:"p5p4s3",text:"Load RSP from new->rsp"},
+            {id:"p5p4s4",text:"Restore RBX, RBP, R12-R15 from new's stack"},
+            {id:"p5p4s5",text:"Update TSS.rsp0 to new->kernel_stack_top"},
+            {id:"p5p4s6",text:"If address space differs: load new CR3"},
+            {id:"p5p4s7",text:"ret (returns to new thread's saved RIP)"}
+          ]},
+          {id:"p5p5",text:"Implement scheduler",subtasks:[
+            {id:"p5p5s1",text:"schedule(): if current is RUNNING → RUNNABLE, enqueue"},
+            {id:"p5p5s2",text:"Dequeue next from run queue"},
+            {id:"p5p5s3",text:"If queue empty → pick idle thread"},
+            {id:"p5p5s4",text:"Set next→state = RUNNING, current_thread = next"},
+            {id:"p5p5s5",text:"Call context_switch(old, next)"}
+          ]},
+          {id:"p5p6",text:"Create idle thread",subtasks:[
+            {id:"p5p6s1",text:"Create thread with entry = idle_loop"},
+            {id:"p5p6s2",text:"idle_loop: while(1) { asm('hlt'); }"},
+            {id:"p5p6s3",text:"Idle thread is never enqueued unless nothing else to run"},
+            {id:"p5p6s4",text:"Verify: idle thread runs when all others blocked/exited"}
+          ]},
+          {id:"p5p7",text:"Hook timer interrupt to scheduler",subtasks:[
+            {id:"p5p7s1",text:"Timer handler calls schedule() after tick update"},
+            {id:"p5p7s2",text:"Preemption: running thread gets replaced every timeslice"},
+            {id:"p5p7s3",text:"Verify: multiple threads get interleaved execution"}
+          ]},
+          {id:"p5p8",text:"Implement thread destruction",subtasks:[
+            {id:"p5p8s1",text:"thread_exit(): set state to DEAD, free kernel stack"},
+            {id:"p5p8s2",text:"Remove from run queue if present"},
+            {id:"p5p8s3",text:"Wake any threads in send_queue with error"},
+            {id:"p5p8s4",text:"If last thread in address space → as_destroy()"},
+            {id:"p5p8s5",text:"Call schedule() to pick next thread"}
+          ]},
+          {id:"p5p9",text:"Test threading and scheduling",subtasks:[
+            {id:"p5p9s1",text:"Create 3 threads, each prints its ID in a loop"},
+            {id:"p5p9s2",text:"Verify interleaved output on serial (Round Robin working)"},
+            {id:"p5p9s3",text:"One thread exits → other two continue"},
+            {id:"p5p9s4",text:"All threads exit → idle thread runs → CPU halts cleanly"}
+          ]}
+        ],
+        milestone:{title:"Milestone: Multithreading Working",desc:"3 threads run concurrently with Round Robin. Interleaved serial output. Thread exit works. Idle thread catches empty queue."}
+      }
+    ]
+  },
+  {
+    id:"p6", icon:"📞", title:"Phase 6 — Syscalls (User ↔ Kernel Gate)",
+    desc:"syscall/sysret, ABI, dispatch table, first Ring 3 code",
+    frs:["FR04","FR21"],
+    color:"#58a6ff",
+    sections:[
+      {
+        type:"theory", title:"Syscall Theory", icon:"📘",
+        tasks:[
+          {id:"p6t1",text:"Understand syscall mechanism",detail:"Read CSAPP: Syscall mechanism. Read Intel SDM: SYSCALL/SYSRET",subtasks:[
+            {id:"p6t1s1",text:"What happens when CPU executes 'syscall' instruction"},
+            {id:"p6t1s2",text:"MSRs: STAR (segment selectors), LSTAR (entry point), SFMASK (RFLAGS mask)"},
+            {id:"p6t1s3",text:"RCX = return RIP, R11 = saved RFLAGS (clobbered by CPU)"},
+            {id:"p6t1s4",text:"RSP is NOT switched by CPU — you must do it manually"},
+            {id:"p6t1s5",text:"sysret: RIP=RCX, RFLAGS=R11, back to Ring 3"},
+            {id:"p6t1s6",text:"Cost of ring transitions (CSAPP Ch 8.1)"}
+          ]},
+          {id:"p6t2",text:"Understand SWAPGS",detail:"Read Intel SDM: SWAPGS instruction",subtasks:[
+            {id:"p6t2s1",text:"GS base MSR vs KernelGSBase MSR"},
+            {id:"p6t2s2",text:"swapgs swaps them — gives kernel access to per-CPU data"},
+            {id:"p6t2s3",text:"Used to find kernel stack pointer on syscall entry"}
+          ]},
+          {id:"p6t3",text:"Understand syscall ABI conventions",subtasks:[
+            {id:"p6t3s1",text:"RAX = syscall number"},
+            {id:"p6t3s2",text:"Arguments: RDI, RSI, RDX, R10 (not RCX — clobbered by syscall)"},
+            {id:"p6t3s3",text:"Return value in RAX"},
+            {id:"p6t3s4",text:"Why this follows Linux convention"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p6p1",text:"Configure syscall MSRs",subtasks:[
+            {id:"p6p1s1",text:"Set STAR MSR: kernel CS/SS in bits 47:32, user CS/SS in bits 63:48"},
+            {id:"p6p1s2",text:"Set LSTAR MSR: address of syscall_entry (assembly stub)"},
+            {id:"p6p1s3",text:"Set SFMASK MSR: mask IF flag (disable interrupts on entry)"},
+            {id:"p6p1s4",text:"Enable SCE bit in EFER MSR (syscall enable)"}
+          ]},
+          {id:"p6p2",text:"Write syscall entry/exit stub (assembly)",subtasks:[
+            {id:"p6p2s1",text:"swapgs — get access to kernel data"},
+            {id:"p6p2s2",text:"Save user RSP, load kernel RSP"},
+            {id:"p6p2s3",text:"Push all general-purpose registers"},
+            {id:"p6p2s4",text:"Call syscall_dispatch(regs) in C"},
+            {id:"p6p2s5",text:"Pop all registers"},
+            {id:"p6p2s6",text:"Restore user RSP"},
+            {id:"p6p2s7",text:"swapgs"},
+            {id:"p6p2s8",text:"sysretq"}
+          ]},
+          {id:"p6p3",text:"Write syscall dispatch table (C)",subtasks:[
+            {id:"p6p3s1",text:"Define syscall numbers: SYS_SEND=0, SYS_RECV=1, SYS_YIELD=2, SYS_EXIT=3, SYS_CREATE=4, SYS_MAP_IO=5, SYS_IRQ_REG=6, SYS_IRQ_ACK=7"},
+            {id:"p6p3s2",text:"switch(rax) dispatches to handler functions"},
+            {id:"p6p3s3",text:"Validate syscall number (return -ENOSYS for unknown)"},
+            {id:"p6p3s4",text:"Implement SYS_YIELD: call schedule()"},
+            {id:"p6p3s5",text:"Implement SYS_EXIT: call thread_exit()"},
+            {id:"p6p3s6",text:"Stubs for SYS_SEND, SYS_RECV (implemented in Phase 7)"}
+          ]},
+          {id:"p6p4",text:"Create first user-mode thread",subtasks:[
+            {id:"p6p4s1",text:"Map user code page in new address space (U/S=1)"},
+            {id:"p6p4s2",text:"Map user stack page in new address space (U/S=1, NX=1)"},
+            {id:"p6p4s3",text:"Set up thread to enter Ring 3: CS=user code, SS=user data in iret frame"},
+            {id:"p6p4s4",text:"User code: call syscall with RAX=SYS_YIELD"},
+            {id:"p6p4s5",text:"Verify: user code runs → syscall → kernel handles → returns to user"}
+          ]},
+          {id:"p6p5",text:"Validate syscall arguments",subtasks:[
+            {id:"p6p5s1",text:"Check pointer args are within user address range (< 0x800000000000)"},
+            {id:"p6p5s2",text:"Check target thread ID is valid"},
+            {id:"p6p5s3",text:"Return error code for invalid args (don't crash)"}
+          ]},
+          {id:"p6p6",text:"Test syscalls",subtasks:[
+            {id:"p6p6s1",text:"User thread calls SYS_YIELD → kernel schedules → user resumes"},
+            {id:"p6p6s2",text:"User thread calls SYS_EXIT → thread terminated"},
+            {id:"p6p6s3",text:"Invalid syscall number → returns -ENOSYS"},
+            {id:"p6p6s4",text:"Invalid pointer → returns -EFAULT"}
+          ]}
+        ],
+        milestone:{title:"Milestone: User Mode Working",desc:"User thread runs in Ring 3, makes syscalls, kernel handles them, returns to user. Invalid args rejected."}
+      }
+    ]
+  },
+  {
+    id:"p7", icon:"💬", title:"Phase 7 — IPC (Inter-Process Communication)",
+    desc:"Synchronous send/recv, message queues, blocking, wakeup",
+    frs:["FR18","FR19","FR20"],
+    color:"#f778ba",
+    sections:[
+      {
+        type:"theory", title:"IPC Theory", icon:"📘",
+        tasks:[
+          {id:"p7t1",text:"Deep dive into synchronous IPC",detail:"Read L4 IPC paper, review our IPC design from LLD",subtasks:[
+            {id:"p7t1s1",text:"Why synchronous IPC is simpler (no kernel buffering)"},
+            {id:"p7t1s2",text:"Send blocks until receiver ready — why?"},
+            {id:"p7t1s3",text:"Recv blocks until sender ready — why?"},
+            {id:"p7t1s4",text:"Rendezvous concept: both must be ready for transfer"}
+          ]},
+          {id:"p7t2",text:"Understand IPC and scheduling coupling",detail:"Read OSTEP Chapter 31",subtasks:[
+            {id:"p7t2s1",text:"How IPC blocking interacts with scheduler"},
+            {id:"p7t2s2",text:"Deferred wakeup: why not switch immediately"},
+            {id:"p7t2s3",text:"Priority inversion: preview of advanced issue"},
+            {id:"p7t2s4",text:"Deadlock: A→send(B), B→send(A) — no fix for now"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p7p1",text:"Define IPC message structure",subtasks:[
+            {id:"p7p1s1",text:"struct ipc_message { int sender_id; int msg_type; uint8_t data[56]; }"},
+            {id:"p7p1s2",text:"Verify total size = 64 bytes"},
+            {id:"p7p1s3",text:"Add pending_msg field to thread struct"}
+          ]},
+          {id:"p7p2",text:"Implement ipc_send(target_tid, msg)",subtasks:[
+            {id:"p7p2s1",text:"Validate target_tid exists"},
+            {id:"p7p2s2",text:"Validate user msg pointer (in user space)"},
+            {id:"p7p2s3",text:"Copy message from user → current_thread->pending_msg"},
+            {id:"p7p2s4",text:"Case: receiver BLOCKED in recv → transfer immediately, wake receiver"},
+            {id:"p7p2s5",text:"Case: receiver NOT in recv → block sender, enqueue on receiver's send_queue"},
+            {id:"p7p2s6",text:"Call schedule() if sender blocked"}
+          ]},
+          {id:"p7p3",text:"Implement ipc_recv(buf)",subtasks:[
+            {id:"p7p3s1",text:"Validate user buf pointer"},
+            {id:"p7p3s2",text:"Case: send_queue NOT empty → dequeue sender, copy message to buf, wake sender"},
+            {id:"p7p3s3",text:"Case: send_queue empty → block receiver, call schedule()"},
+            {id:"p7p3s4",text:"Set sender state = RUNNABLE, enqueue in run queue (deferred wakeup)"}
+          ]},
+          {id:"p7p4",text:"Wire SYS_SEND and SYS_RECV syscalls",subtasks:[
+            {id:"p7p4s1",text:"SYS_SEND handler: call ipc_send(RDI, RSI)"},
+            {id:"p7p4s2",text:"SYS_RECV handler: call ipc_recv(RDI)"},
+            {id:"p7p4s3",text:"Return 0 on success, negative error code on failure"}
+          ]},
+          {id:"p7p5",text:"Test IPC",subtasks:[
+            {id:"p7p5s1",text:"Thread A sends to B (B not ready) → A blocks → B recv → transfer → both continue"},
+            {id:"p7p5s2",text:"Thread B recv (no sender) → B blocks → A sends → transfer → both continue"},
+            {id:"p7p5s3",text:"3 senders, 1 receiver → FIFO order verified"},
+            {id:"p7p5s4",text:"Verify message content is correct after transfer"},
+            {id:"p7p5s5",text:"Verify deferred wakeup: sender wakes but doesn't run until scheduled"},
+            {id:"p7p5s6",text:"Send to invalid tid → error returned"},
+            {id:"p7p5s7",text:"Ping-pong test: A sends to B, B sends back to A, repeat 100 times"}
+          ]}
+        ],
+        milestone:{title:"Milestone: IPC Working",desc:"Two user threads exchange messages via send/recv. Blocking and wakeup work correctly. FIFO ordering verified."}
+      }
+    ]
+  },
+  {
+    id:"p8", icon:"🔌", title:"Phase 8 — User-Space Serial Driver",
+    desc:"First user-space driver: interrupt forwarding, I/O port delegation",
+    frs:["FR24","FR25"],
+    color:"#e3b341",
+    sections:[
+      {
+        type:"theory", title:"Driver & I/O Theory", icon:"📘",
+        tasks:[
+          {id:"p8t1",text:"Understand user-space driver architecture",detail:"Read OSTEP Chapters 33-36 (I/O Devices, Hard Disk Drives)",subtasks:[
+            {id:"p8t1s1",text:"Programmed I/O (PIO) vs DMA"},
+            {id:"p8t1s2",text:"Polling vs interrupt-driven I/O"},
+            {id:"p8t1s3",text:"Why interrupt-driven is better for responsiveness"},
+            {id:"p8t1s4",text:"I/O port permission bitmap (IOPB) in TSS"}
+          ]},
+          {id:"p8t2",text:"Understand UART 16550 serial controller",subtasks:[
+            {id:"p8t2s1",text:"Register map: data, IER, IIR, FCR, LCR, MCR, LSR"},
+            {id:"p8t2s2",text:"COM1 base port: 0x3F8, IRQ 4"},
+            {id:"p8t2s3",text:"Receive interrupt: data available → IRQ fires"},
+            {id:"p8t2s4",text:"Transmit: check LSR bit 5 (transmit ready)"}
+          ]}
+        ]
+      },
+      {
+        type:"practice", title:"Implementation", icon:"🔨",
+        tasks:[
+          {id:"p8p1",text:"Implement SYS_MAP_IO (I/O port permission)",subtasks:[
+            {id:"p8p1s1",text:"Set IOPB (I/O Permission Bitmap) in TSS for requesting thread"},
+            {id:"p8p1s2",text:"Grant access to specific port range only"},
+            {id:"p8p1s3",text:"Verify: user code can IN/OUT on granted ports"},
+            {id:"p8p1s4",text:"Verify: user code faults on non-granted ports"}
+          ]},
+          {id:"p8p2",text:"Implement SYS_IRQ_REG (interrupt registration)",subtasks:[
+            {id:"p8p2s1",text:"Maintain irq_handler_table[16]: maps IRQ → thread ID"},
+            {id:"p8p2s2",text:"SYS_IRQ_REG(irq_num): register current thread for this IRQ"},
+            {id:"p8p2s3",text:"Only one thread per IRQ (or error)"},
+            {id:"p8p2s4",text:"Unmask the requested IRQ line in PIC"}
+          ]},
+          {id:"p8p3",text:"Implement interrupt → IPC notification path",subtasks:[
+            {id:"p8p3s1",text:"IRQ handler: look up registered thread"},
+            {id:"p8p3s2",text:"Mask the IRQ (prevent interrupt storm)"},
+            {id:"p8p3s3",text:"Create lightweight notification message (msg_type = MSG_IRQ)"},
+            {id:"p8p3s4",text:"If driver thread blocked in recv: deliver message, wake thread"},
+            {id:"p8p3s5",text:"If driver not in recv: queue notification"},
+            {id:"p8p3s6",text:"Send EOI to PIC"}
+          ]},
+          {id:"p8p4",text:"Implement SYS_IRQ_ACK",subtasks:[
+            {id:"p8p4s1",text:"SYS_IRQ_ACK(irq_num): unmask the IRQ line"},
+            {id:"p8p4s2",text:"This allows the next interrupt to fire"},
+            {id:"p8p4s3",text:"Driver must call this after processing each interrupt"}
+          ]},
+          {id:"p8p5",text:"Write user-space serial driver",subtasks:[
+            {id:"p8p5s1",text:"sys_map_io(0x3F8, 8) — get COM1 port access"},
+            {id:"p8p5s2",text:"sys_irq_register(4) — register for serial IRQ"},
+            {id:"p8p5s3",text:"Initialize UART from user space (enable receive interrupt)"},
+            {id:"p8p5s4",text:"Main loop: recv() → read data → process → irq_ack(4)"},
+            {id:"p8p5s5",text:"Echo received character back to serial output"}
+          ]},
+          {id:"p8p6",text:"Integration testing",subtasks:[
+            {id:"p8p6s1",text:"Boot kernel → serial driver starts as user process"},
+            {id:"p8p6s2",text:"Type character in QEMU serial → IRQ → IPC → driver → echo"},
+            {id:"p8p6s3",text:"Kill serial driver process → kernel continues → other threads fine"},
+            {id:"p8p6s4",text:"Restart serial driver → it registers again → works"},
+            {id:"p8p6s5",text:"Stress test: rapid input → no interrupt storms, no lost chars"}
+          ]}
+        ],
+        milestone:{title:"🏆 FINAL MILESTONE: Microkernel Complete (Phase 1)",desc:"Full microkernel running: boot → memory → threads → IPC → user-space serial driver echoes input. All 25 FRs satisfied."}
+      }
+    ]
+  }
+];
+
+let filter='all';
+let searchQuery='';
+
+function render(){
+  const el=document.getElementById('phases');
+  el.innerHTML='';
+  ROADMAP.forEach((phase,pi)=>{
+    const tasks=getAllTasks(phase);
+    const done=tasks.filter(t=>isChecked(t.id)).length;
+    const total=tasks.length;
+    const pct=total?Math.round(done/total*100):0;
+    const theoryTasks=tasks.filter(t=>t._type==='theory');
+    const practiceTasks=tasks.filter(t=>t._type==='practice');
+
+    let visible=true;
+    if(filter==='theory') visible=phase.sections.some(s=>s.type==='theory');
+    if(filter==='practice') visible=phase.sections.some(s=>s.type==='practice');
+    if(filter==='incomplete') visible=done<total;
+    if(searchQuery&&!matchesSearch(phase,searchQuery)) visible=false;
+
+    if(!visible) return;
+
+    const open=getOpen(phase.id);
+    const div=document.createElement('div');
+    div.className='phase'+(open?' open':'');
+    div.innerHTML=`
+      <div class="phase-header" onclick="togglePhase('${phase.id}',this)">
+        <div class="phase-icon">${phase.icon}</div>
+        <div class="phase-info">
+          <h2>${phase.title}</h2>
+          <p>${phase.desc}</p>
+          <div class="phase-progress"><div class="phase-progress-bar" style="width:${pct}%;background:${phase.color}"></div></div>
+        </div>
+        <div class="phase-meta">
+          <span class="phase-count">${done}/${total}</span>
+          ${phase.frs.map(f=>`<span class="tag fr">${f}</span>`).join('')}
+          ${pct===100?'<span class="tag done">Complete ✓</span>':''}
+        </div>
+        <div class="chevron">▶</div>
+      </div>
+      <div class="phase-body">
+        ${phase.sections.map(sec=>renderSection(sec,phase)).join('')}
+        <div class="section">
+          <div class="notes-area">
+            <label>📝 Notes for ${phase.title}</label>
+            <textarea placeholder="Your notes..." oninput="saveNote('${phase.id}',this.value)">${getNote(phase.id)}</textarea>
+          </div>
+        </div>
+      </div>
+    `;
+    el.appendChild(div);
+  });
+  updateStats();
+  renderTimeline();
+}
+
+function renderSection(sec,phase){
+  if(filter==='theory'&&sec.type==='practice') return '';
+  if(filter==='practice'&&sec.type==='theory') return '';
+  const icon=sec.type==='theory'?'📘':'🔨';
+  const tagClass=sec.type==='theory'?'t':'p';
+  let html=`<div class="section">
+    <div class="section-header">
+      <span class="icon">${icon}</span>
+      <h3>${sec.title}</h3>
+      <span class="tag ${tagClass}">${sec.type}</span>
+    </div>`;
+  sec.tasks.forEach(task=>{
+    if(searchQuery&&!taskMatchesSearch(task,searchQuery)) return;
+    const checked=isChecked(task.id);
+    html+=`<div class="task${checked?' done':''}">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggle('${task.id}',this)">
+      <div class="task-content">
+        <div class="task-text">${task.text}</div>
+        ${task.detail?`<div class="task-detail">${task.detail}</div>`:''}
+        ${task.subtasks?`<div class="subtasks">${task.subtasks.map(st=>{
+          const sc=isChecked(st.id);
+          return `<div class="subtask${sc?' done':''}">
+            <input type="checkbox" ${sc?'checked':''} onchange="toggle('${st.id}',this)">
+            <span class="subtask-text">${st.text}</span>
+          </div>`;
+        }).join('')}</div>`:''}
+      </div>
+    </div>`;
+  });
+  if(sec.milestone){
+    html+=`<div class="milestone"><h4>🏁 ${sec.milestone.title}</h4><p>${sec.milestone.desc}</p></div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+function getAllTasks(phase){
+  const arr=[];
+  phase.sections.forEach(sec=>{
+    sec.tasks.forEach(t=>{
+      arr.push({...t,_type:sec.type});
+      if(t.subtasks) t.subtasks.forEach(st=>arr.push({...st,_type:sec.type}));
+    });
+  });
+  return arr;
+}
+
+function matchesSearch(phase,q){
+  q=q.toLowerCase();
+  if(phase.title.toLowerCase().includes(q)) return true;
+  return phase.sections.some(s=>s.tasks.some(t=>taskMatchesSearch(t,q)));
+}
+
+function taskMatchesSearch(t,q){
+  q=q.toLowerCase();
+  if(t.text.toLowerCase().includes(q)) return true;
+  if(t.detail&&t.detail.toLowerCase().includes(q)) return true;
+  if(t.subtasks&&t.subtasks.some(s=>s.text.toLowerCase().includes(q))) return true;
+  return false;
+}
+
+function toggle(id,el){
+  const state=loadState();
+  state[id]=el.checked;
+  saveState(state);
+  render();
+}
+
+function togglePhase(id,el){
+  const s=loadUIState();
+  s[id]=!s[id];
+  saveUIState(s);
+  const phase=el.closest('.phase');
+  phase.classList.toggle('open');
+}
+
+function isChecked(id){return !!(loadState()[id]);}
+function getOpen(id){return !!(loadUIState()[id]);}
+
+function loadState(){try{return JSON.parse(localStorage.getItem('mk_roadmap_state')||'{}');}catch(e){return {};}}
+function saveState(s){localStorage.setItem('mk_roadmap_state',JSON.stringify(s));}
+function loadUIState(){try{return JSON.parse(localStorage.getItem('mk_roadmap_ui')||'{}');}catch(e){return {};}}
+function saveUIState(s){localStorage.setItem('mk_roadmap_ui',JSON.stringify(s));}
+
+function saveNote(id,val){const n=loadNotes();n[id]=val;localStorage.setItem('mk_roadmap_notes',JSON.stringify(n));}
+function getNote(id){return loadNotes()[id]||'';}
+function loadNotes(){try{return JSON.parse(localStorage.getItem('mk_roadmap_notes')||'{}');}catch(e){return {};}}
+
+function setFilter(f,btn){
+  filter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function searchTasks(q){searchQuery=q;render();}
+
+function updateStats(){
+  let done=0,total=0,theoryDone=0,practiceDone=0,theoryTotal=0,practiceTotal=0;
+  ROADMAP.forEach(phase=>{
+    const tasks=getAllTasks(phase);
+    tasks.forEach(t=>{
+      total++;
+      if(isChecked(t.id)) done++;
+      if(t._type==='theory'){theoryTotal++;if(isChecked(t.id))theoryDone++;}
+      if(t._type==='practice'){practiceTotal++;if(isChecked(t.id))practiceDone++;}
+    });
+  });
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('statDone').textContent=done;
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statTheory').textContent=theoryDone+'/'+theoryTotal;
+  document.getElementById('statPractice').textContent=practiceDone+'/'+practiceTotal;
+  document.getElementById('ringPct').textContent=pct+'%';
+  const circ=125.66;
+  document.getElementById('ringFg').style.strokeDashoffset=circ-(circ*pct/100);
+}
+
+function renderTimeline(){
+  const el=document.getElementById('timeline');
+  el.innerHTML='';
+  ROADMAP.forEach(phase=>{
+    const tasks=getAllTasks(phase);
+    const done=tasks.filter(t=>isChecked(t.id)).length;
+    const total=tasks.length;
+    const pct=total?Math.round(done/total*100):0;
+    const complete=pct===100;
+    el.innerHTML+=`<div class="timeline-item${complete?' complete':''}">
+      <div class="t-phase">${phase.icon}</div>
+      <div class="t-pct" style="color:${complete?'var(--green)':'var(--dim)'}">${pct}%</div>
+    </div>`;
+  });
+}
+
+function exportProgress(){
+  const data={state:loadState(),notes:loadNotes(),exported:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='microkernel_roadmap_progress.json';
+  a.click();
+}
+
+function importProgress(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(data.state) saveState(data.state);
+      if(data.notes) localStorage.setItem('mk_roadmap_notes',JSON.stringify(data.notes));
+      render();
+      alert('Progress imported successfully!');
+    }catch(err){alert('Invalid file format');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+function resetProgress(){
+  if(!confirm('Reset ALL progress? This cannot be undone.')) return;
+  localStorage.removeItem('mk_roadmap_state');
+  localStorage.removeItem('mk_roadmap_notes');
+  localStorage.removeItem('mk_roadmap_ui');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

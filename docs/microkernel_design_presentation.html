@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microkernel Design Document — Complete Architecture</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--dim:#8b949e;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--orange:#d29922;--purple:#bc8cff;--cyan:#39d353}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+.slide{display:none;flex-direction:column;justify-content:center;align-items:center;height:100vh;padding:60px 80px;position:relative;animation:fadeIn .4s}
+.slide.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.slide-num{position:absolute;bottom:20px;right:30px;color:var(--dim);font-size:14px}
+.slide-section{position:absolute;top:20px;left:30px;color:var(--accent);font-size:13px;text-transform:uppercase;letter-spacing:2px;font-weight:600}
+h1{font-size:48px;font-weight:700;margin-bottom:10px;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;line-height:1.2}
+h2{font-size:38px;font-weight:700;margin-bottom:20px;color:var(--text);text-align:center}
+h3{font-size:28px;font-weight:600;margin-bottom:16px;color:var(--accent)}
+.subtitle{font-size:22px;color:var(--dim);text-align:center;margin-top:8px}
+.content{max-width:1100px;width:100%}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:40px;width:100%;max-width:1100px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;width:100%;max-width:1100px}
+.col{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px}
+.col h3{font-size:20px;margin-bottom:12px}
+ul{list-style:none;padding:0}
+ul li{padding:6px 0;padding-left:20px;position:relative;font-size:17px;line-height:1.5}
+ul li::before{content:"›";position:absolute;left:0;color:var(--accent);font-weight:bold}
+ul.check li::before{content:"✓";color:var(--green)}
+ul.cross li::before{content:"✗";color:var(--red)}
+ul.warn li::before{content:"⚠";color:var(--orange)}
+pre{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 24px;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:15px;line-height:1.6;overflow-x:auto;color:var(--text);max-width:1100px;width:100%}
+.keyword{color:var(--purple)}
+.type{color:var(--cyan)}
+.comment{color:var(--dim)}
+.string{color:var(--green)}
+.flow-box{background:var(--card);border:2px solid var(--border);border-radius:10px;padding:16px 24px;text-align:center;font-size:16px;font-weight:600}
+.flow-box.kernel{border-color:var(--accent);color:var(--accent)}
+.flow-box.user{border-color:var(--green);color:var(--green)}
+.flow-box.hw{border-color:var(--orange);color:var(--orange)}
+.flow-arrow{color:var(--dim);font-size:24px;text-align:center;padding:4px 0}
+.tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;margin:3px}
+.tag.green{background:rgba(63,185,80,.15);color:var(--green)}
+.tag.blue{background:rgba(88,166,255,.15);color:var(--accent)}
+.tag.red{background:rgba(248,81,73,.15);color:var(--red)}
+.tag.purple{background:rgba(188,140,255,.15);color:var(--purple)}
+.tag.orange{background:rgba(210,153,34,.15);color:var(--orange)}
+.highlight{background:rgba(88,166,255,.1);border-left:3px solid var(--accent);padding:16px 20px;border-radius:0 8px 8px 0;margin:12px 0;font-size:17px}
+.grid-table{width:100%;border-collapse:collapse;font-size:16px}
+.grid-table th{background:var(--card);color:var(--accent);padding:12px 16px;text-align:left;border-bottom:2px solid var(--accent);font-weight:600}
+.grid-table td{padding:10px 16px;border-bottom:1px solid var(--border)}
+.grid-table tr:hover td{background:rgba(88,166,255,.05)}
+.nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:100}
+.nav button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s}
+.nav button:hover{border-color:var(--accent);color:var(--accent)}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width .3s;z-index:100}
+.center{text-align:center}
+.mt{margin-top:20px}
+.mb{margin-bottom:20px}
+.small{font-size:14px;color:var(--dim)}
+.big-icon{font-size:64px;margin-bottom:16px}
+.flex-row{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}
+.state-box{padding:12px 20px;border-radius:8px;font-weight:700;font-size:18px;text-align:center;min-width:120px}
+.state-box.running{background:rgba(63,185,80,.2);color:var(--green);border:2px solid var(--green)}
+.state-box.runnable{background:rgba(88,166,255,.2);color:var(--accent);border:2px solid var(--accent)}
+.state-box.blocked{background:rgba(248,81,73,.2);color:var(--red);border:2px solid var(--red)}
+.arrow-right{font-size:28px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<!-- ==================== SLIDE 1: Title ==================== -->
+<div class="slide active" id="s0">
+<div class="slide-section">Microkernel Architecture</div>
+<h1>Microkernel Design Document</h1>
+<p class="subtitle">Complete Architecture — From Fundamentals to Implementation</p>
+<div class="mt" style="margin-top:40px">
+<span class="tag blue">x86-64</span>
+<span class="tag green">Synchronous IPC</span>
+<span class="tag purple">User-Space Drivers</span>
+<span class="tag orange">Round Robin</span>
+</div>
+<p class="small mt" style="margin-top:40px">Use ← → arrow keys or buttons to navigate</p>
+<div class="slide-num">1 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 2: Agenda ==================== -->
+<div class="slide" id="s1">
+<div class="slide-section">Overview</div>
+<h2>Agenda</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Part I — Foundations</h3>
+<ul>
+<li>What is a Microkernel?</li>
+<li>Monolithic vs Microkernel</li>
+<li>Design Philosophy</li>
+<li>CPU Privilege Model</li>
+<li>Boot Process</li>
+</ul>
+</div>
+<div class="col">
+<h3>Part II — Core Systems</h3>
+<ul>
+<li>Memory Architecture</li>
+<li>Threading & Scheduling</li>
+<li>Context Switching</li>
+<li>IPC Design</li>
+<li>Syscalls & Interrupts</li>
+<li>Driver Architecture</li>
+<li>Complete System Flow</li>
+</ul>
+</div>
+</div>
+<div class="slide-num">2 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 3: What is an OS ==================== -->
+<div class="slide" id="s2">
+<div class="slide-section">Foundations</div>
+<h2>What Does an OS Actually Do?</h2>
+<div class="content mt">
+<div class="highlight">An OS is a <strong>resource manager</strong> that provides <strong>abstractions</strong> over hardware, so programs don't need to know about physical memory, CPU scheduling, or device protocols.</div>
+<div class="three-col mt">
+<div class="col center">
+<div style="font-size:36px;margin-bottom:8px">🖥️</div>
+<h3>CPU</h3>
+<p>Multiple programs share one processor via <strong>time-slicing</strong></p>
+</div>
+<div class="col center">
+<div style="font-size:36px;margin-bottom:8px">🧠</div>
+<h3>Memory</h3>
+<p>Each program thinks it owns all memory via <strong>virtual addresses</strong></p>
+</div>
+<div class="col center">
+<div style="font-size:36px;margin-bottom:8px">⚡</div>
+<h3>Devices</h3>
+<p>Hardware accessed through <strong>controlled interfaces</strong> instead of raw ports</p>
+</div>
+</div>
+</div>
+<div class="slide-num">3 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 4: What is a Microkernel ==================== -->
+<div class="slide" id="s3">
+<div class="slide-section">Foundations</div>
+<h2>What is a Microkernel?</h2>
+<div class="content mt">
+<div class="highlight">A microkernel runs the <strong>absolute minimum</strong> in kernel mode. Everything else — drivers, filesystems, networking — runs as user-space processes communicating via IPC.</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Kernel provides MECHANISMS</h3>
+<ul class="check">
+<li>Context switching</li>
+<li>Memory protection</li>
+<li>IPC message passing</li>
+<li>Interrupt routing</li>
+<li>Privilege enforcement</li>
+</ul>
+</div>
+<div class="col">
+<h3>User space provides POLICIES</h3>
+<ul class="check">
+<li>Device drivers</li>
+<li>Filesystem</li>
+<li>Networking stack</li>
+<li>Process management</li>
+<li>Security policies</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num">4 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 5: Monolithic vs Micro ==================== -->
+<div class="slide" id="s4">
+<div class="slide-section">Foundations</div>
+<h2>Monolithic vs Microkernel</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Monolithic (Linux)</h3>
+<pre style="border:none;padding:10px;font-size:14px">
+┌─────────────────────────┐
+│       User Programs      │  Ring 3
+├─────────────────────────┤
+│  Drivers │ FS │ Network  │
+│  Scheduler │ Memory Mgr │  Ring 0
+│  IPC │ Syscalls │ ...    │  (ALL in
+│  Everything in kernel    │   kernel)
+└─────────────────────────┘
+</pre>
+<ul class="cross" style="margin-top:12px">
+<li>One bad driver crashes entire OS</li>
+<li>Huge trusted code base</li>
+</ul>
+</div>
+<div class="col">
+<h3>Microkernel (Our Design)</h3>
+<pre style="border:none;padding:10px;font-size:14px">
+┌──────┐ ┌──────┐ ┌──────┐
+│Driver│ │  FS  │ │ Net  │  Ring 3
+│Server│ │Server│ │Server│  (isolated)
+├──────┴─┴──────┴─┴──────┤
+│   IPC │ Sched │ MemMgr │  Ring 0
+│   (Minimal Kernel)      │  (tiny)
+└─────────────────────────┘
+</pre>
+<ul class="check" style="margin-top:12px">
+<li>Driver crash ≠ kernel crash</li>
+<li>Minimal trusted code base</li>
+</ul>
+</div>
+</div>
+<div class="slide-num">5 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 6: Design Philosophy ==================== -->
+<div class="slide" id="s5">
+<div class="slide-section">Foundations</div>
+<h2>Core Design Philosophy</h2>
+<div class="content">
+<table class="grid-table mt">
+<tr><th>Principle</th><th>What It Means</th><th>Example</th></tr>
+<tr><td><strong>Minimal TCB</strong></td><td>Less code in Ring 0 = fewer ways to crash</td><td>~5000 lines of kernel code</td></tr>
+<tr><td><strong>Mechanism, not Policy</strong></td><td>Kernel provides tools, not decisions</td><td>Kernel does IPC, not "how to talk to disk"</td></tr>
+<tr><td><strong>Fault Isolation</strong></td><td>One component dying doesn't kill the system</td><td>Serial driver crashes → restart it</td></tr>
+<tr><td><strong>IPC as Foundation</strong></td><td>All inter-component communication via messages</td><td>App → IPC → FS Server → IPC → Disk Driver</td></tr>
+<tr><td><strong>Privilege Separation</strong></td><td>Only kernel touches hardware directly</td><td>Drivers request I/O via syscalls</td></tr>
+</table>
+</div>
+<div class="slide-num">6 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 7: CPU Privilege Model ==================== -->
+<div class="slide" id="s6">
+<div class="slide-section">CPU & Privilege</div>
+<h2>CPU Privilege Rings</h2>
+<div class="content mt">
+<div class="highlight">x86-64 has 4 privilege rings (0–3). We use only Ring 0 (kernel) and Ring 3 (user). The CPU <strong>hardware</strong> enforces this — it's not software convention.</div>
+<div class="two-col mt">
+<div class="col center">
+<pre style="border:none;font-size:16px;text-align:center">
+    ┌───────────────┐
+    │    Ring 3      │ ← User processes
+    │  (Restricted)  │   Cannot:
+    │                │   • Access I/O ports
+    │   ┌───────┐    │   • Modify page tables
+    │   │Ring 0 │    │   • Disable interrupts
+    │   │Kernel │    │   • Execute privileged
+    │   │(Full  │    │     instructions
+    │   │Access)│    │
+    │   └───────┘    │
+    └───────────────┘
+</pre>
+</div>
+<div class="col">
+<h3>Ring 0 — Kernel</h3>
+<ul class="check">
+<li>Full hardware access</li>
+<li>Can modify page tables (CR3)</li>
+<li>Can enable/disable interrupts</li>
+<li>Can execute IN/OUT (I/O ports)</li>
+</ul>
+<h3 style="margin-top:16px">Ring 3 — User</h3>
+<ul class="cross">
+<li>Cannot touch hardware</li>
+<li>Cannot see other processes' memory</li>
+<li>Must use syscalls to request services</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num">7 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 8: Kernel Entry Paths ==================== -->
+<div class="slide" id="s7">
+<div class="slide-section">CPU & Privilege</div>
+<h2>Three Ways to Enter the Kernel</h2>
+<div class="three-col mt">
+<div class="col center">
+<div style="font-size:36px;margin-bottom:8px">📞</div>
+<h3>Syscall</h3>
+<p><strong>Controlled entry</strong></p>
+<p class="small mt">User program explicitly requests kernel service</p>
+<pre style="border:none;font-size:13px;margin-top:12px">
+User code
+   │
+   │ syscall instruction
+   ▼
+Kernel handler
+   │
+   ▼
+Return to user
+</pre>
+<span class="tag green">Voluntary</span>
+</div>
+<div class="col center">
+<div style="font-size:36px;margin-bottom:8px">💥</div>
+<h3>Exception</h3>
+<p><strong>Forced entry</strong></p>
+<p class="small mt">CPU detects error in user code (div/0, page fault)</p>
+<pre style="border:none;font-size:13px;margin-top:12px">
+User error
+   │
+   │ CPU trap
+   ▼
+Exception handler
+   │
+   ▼
+Kill or fix
+</pre>
+<span class="tag red">Involuntary</span>
+</div>
+<div class="col center">
+<div style="font-size:36px;margin-bottom:8px">⚡</div>
+<h3>Interrupt</h3>
+<p><strong>External entry</strong></p>
+<p class="small mt">Hardware device needs attention (timer, keyboard)</p>
+<pre style="border:none;font-size:13px;margin-top:12px">
+Hardware signal
+   │
+   │ IRQ line
+   ▼
+Interrupt handler
+   │
+   ▼
+Resume or schedule
+</pre>
+<span class="tag orange">Asynchronous</span>
+</div>
+</div>
+<div class="slide-num">8 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 9: Boot Overview ==================== -->
+<div class="slide" id="s8">
+<div class="slide-section">Boot Process</div>
+<h2>Boot Sequence — The Big Picture</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+ Power On
+    │
+    ▼
+ CPU Reset Vector (0xFFFFFFF0) ──► BIOS/UEFI firmware
+    │
+    ▼
+ BIOS initializes hardware, finds boot disk
+    │
+    ▼
+ GRUB loads ──► reads kernel ELF from disk
+    │
+    ▼
+ GRUB: Real Mode (16-bit) → Protected Mode (32-bit)
+    │
+    ▼
+ GRUB jumps to <span class="keyword">_start</span> (YOUR code begins here)
+    │    EAX = magic number, EBX = multiboot info
+    │    No stack, interrupts OFF, 32-bit mode
+    │
+    ▼
+ _start (assembly):
+    │  Set stack → Save multiboot ptr → Setup paging → Enable long mode
+    │
+    ▼
+ Long mode (64-bit) ──► call <span class="keyword">kernel_main</span>(multiboot_info)
+    │
+    ▼
+ kernel_main: serial → GDT → IDT → memory → scheduler → first thread
+</pre>
+</div>
+<div class="slide-num">9 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 10: CPU State at Handoff ==================== -->
+<div class="slide" id="s9">
+<div class="slide-section">Boot Process</div>
+<h2>What GRUB Gives You (CPU State at _start)</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>What You Have</h3>
+<table class="grid-table">
+<tr><td><strong>EAX</strong></td><td>0x36D76289 (Multiboot2 magic)</td></tr>
+<tr><td><strong>EBX</strong></td><td>Pointer to Multiboot info struct</td></tr>
+<tr><td><strong>Mode</strong></td><td>Protected Mode (32-bit)</td></tr>
+<tr><td><strong>A20</strong></td><td>Enabled (access &gt; 1MB)</td></tr>
+</table>
+</div>
+<div class="col">
+<h3>What You DON'T Have</h3>
+<ul class="cross">
+<li>No stack (ESP undefined)</li>
+<li>No usable GDT (GRUB's is temporary)</li>
+<li>No IDT (interrupts disabled)</li>
+<li>Not in 64-bit mode yet</li>
+<li>No paging (your page tables)</li>
+</ul>
+</div>
+</div>
+<div class="highlight mt">The Multiboot info structure contains the <strong>physical memory map</strong> — which RAM regions exist, their sizes, and types. This is how you know how much RAM is available.</div>
+<div class="slide-num">10 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 11: _start Steps ==================== -->
+<div class="slide" id="s10">
+<div class="slide-section">Boot Process</div>
+<h2>_start — Assembly Bootstrap (32-bit → 64-bit)</h2>
+<div class="content mt">
+<pre style="font-size:14px">
+<span class="comment">; Step 1: Set up temporary stack</span>
+    <span class="keyword">mov</span> esp, stack_top          <span class="comment">; now C calling convention works</span>
+
+<span class="comment">; Step 2: Save multiboot pointer</span>
+    <span class="keyword">mov</span> [multiboot_ptr], ebx
+
+<span class="comment">; Step 3: Set up page tables for long mode</span>
+    <span class="comment">; Identity map first 2MB    (so current code keeps running)</span>
+    <span class="comment">; Map higher-half kernel    (0xFFFF800000000000+)</span>
+
+<span class="comment">; Step 4: Enable PAE in CR4</span>
+    <span class="keyword">mov</span> eax, cr4
+    <span class="keyword">or</span>  eax, (1 &lt;&lt; 5)           <span class="comment">; CR4.PAE = 1</span>
+    <span class="keyword">mov</span> cr4, eax
+
+<span class="comment">; Step 5: Load page table root into CR3</span>
+    <span class="keyword">mov</span> eax, pml4_table
+    <span class="keyword">mov</span> cr3, eax
+
+<span class="comment">; Step 6: Enable long mode (set EFER.LME)</span>
+    <span class="keyword">mov</span> ecx, 0xC0000080         <span class="comment">; EFER MSR</span>
+    <span class="keyword">rdmsr</span>
+    <span class="keyword">or</span>  eax, (1 &lt;&lt; 8)           <span class="comment">; LME bit</span>
+    <span class="keyword">wrmsr</span>
+
+<span class="comment">; Step 7: Enable paging (CR0.PG = 1)</span>
+    <span class="keyword">mov</span> eax, cr0
+    <span class="keyword">or</span>  eax, (1 &lt;&lt; 31)
+    <span class="keyword">mov</span> cr0, eax
+
+<span class="comment">; Step 8: Load 64-bit GDT and far jump to 64-bit code</span>
+    <span class="keyword">lgdt</span> [gdt64.pointer]
+    <span class="keyword">jmp</span>  gdt64.code_segment:long_mode_start
+</pre>
+</div>
+<div class="slide-num">11 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 12: kernel_main ==================== -->
+<div class="slide" id="s11">
+<div class="slide-section">Boot Process</div>
+<h2>kernel_main() — First C Code</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="type">void</span> <span class="keyword">kernel_main</span>(multiboot_info_t *mbi) {
+
+    serial_init();            <span class="comment">// 1. Debug output first — see what's happening</span>
+
+    gdt_init();               <span class="comment">// 2. Proper GDT with TSS (for ring transitions)</span>
+
+    idt_init();               <span class="comment">// 3. Interrupt Descriptor Table (exception + IRQ handlers)</span>
+
+    pmm_init(mbi);            <span class="comment">// 4. Physical Memory Manager (parse memory map)</span>
+
+    vmm_init();               <span class="comment">// 5. Virtual Memory Manager (kernel page tables)</span>
+
+    scheduler_init();         <span class="comment">// 6. Scheduler (create idle thread)</span>
+
+    thread_create(init_task); <span class="comment">// 7. First real user thread</span>
+
+    scheduler_start();        <span class="comment">// 8. Enable timer, start scheduling (never returns)</span>
+}
+</pre>
+<div class="highlight mt">Order matters! Each step depends on the previous one. Serial first = you can debug everything after it. GDT before IDT = interrupts need valid segments.</div>
+</div>
+<div class="slide-num">12 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 13: GDT & TSS ==================== -->
+<div class="slide" id="s12">
+<div class="slide-section">CPU Structures</div>
+<h2>GDT & TSS — Segment and Stack Control</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>GDT (Global Descriptor Table)</h3>
+<p class="mb">Defines memory segments. In 64-bit, segmentation is mostly flat, but GDT is still required for:</p>
+<table class="grid-table">
+<tr><th>Entry</th><th>Purpose</th></tr>
+<tr><td>0x00</td><td>Null descriptor (required)</td></tr>
+<tr><td>0x08</td><td>Kernel Code (Ring 0, 64-bit)</td></tr>
+<tr><td>0x10</td><td>Kernel Data (Ring 0)</td></tr>
+<tr><td>0x18</td><td>User Code (Ring 3, 64-bit)</td></tr>
+<tr><td>0x20</td><td>User Data (Ring 3)</td></tr>
+<tr><td>0x28</td><td>TSS descriptor</td></tr>
+</table>
+</div>
+<div class="col">
+<h3>TSS (Task State Segment)</h3>
+<p class="mb">When CPU transitions Ring 3 → Ring 0, it needs to know which kernel stack to use. TSS provides this.</p>
+<pre style="border:none;font-size:14px">
+<span class="type">struct</span> tss {
+    <span class="type">uint32_t</span> reserved0;
+    <span class="type">uint64_t</span> rsp0;  <span class="comment">// ← kernel stack</span>
+    <span class="type">uint64_t</span> rsp1;
+    <span class="type">uint64_t</span> rsp2;
+    <span class="comment">// ... IST entries ...</span>
+};
+</pre>
+<div class="highlight" style="font-size:14px">On every context switch, kernel updates <strong>TSS.rsp0</strong> to point to the new thread's kernel stack top.</div>
+</div>
+</div>
+<div class="slide-num">13 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 14: IDT ==================== -->
+<div class="slide" id="s13">
+<div class="slide-section">CPU Structures</div>
+<h2>IDT — Interrupt Descriptor Table</h2>
+<div class="content mt">
+<p class="mb">256 entries. Each entry tells the CPU: "when interrupt N fires, jump to this handler at this privilege level."</p>
+<table class="grid-table">
+<tr><th>Vector</th><th>Type</th><th>Name</th><th>Our Action</th></tr>
+<tr><td>0</td><td>Exception</td><td>Divide Error</td><td>Kill thread</td></tr>
+<tr><td>6</td><td>Exception</td><td>Invalid Opcode</td><td>Kill thread</td></tr>
+<tr><td>8</td><td>Exception</td><td>Double Fault</td><td>Kernel panic (use IST)</td></tr>
+<tr><td>13</td><td>Exception</td><td>General Protection</td><td>Kill thread</td></tr>
+<tr><td>14</td><td>Exception</td><td>Page Fault</td><td>Handle or kill</td></tr>
+<tr><td>32</td><td>IRQ 0</td><td>Timer (PIT/APIC)</td><td>Schedule</td></tr>
+<tr><td>33</td><td>IRQ 1</td><td>Keyboard</td><td>IPC → driver</td></tr>
+<tr><td>36</td><td>IRQ 4</td><td>Serial (COM1)</td><td>IPC → serial driver</td></tr>
+<tr><td>128</td><td>Syscall</td><td>Software interrupt</td><td>Syscall dispatch</td></tr>
+</table>
+<div class="highlight mt">Double fault (vector 8) uses a separate stack via IST to avoid a triple fault if the kernel stack itself overflows.</div>
+</div>
+<div class="slide-num">14 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 15: Memory Overview ==================== -->
+<div class="slide" id="s14">
+<div class="slide-section">Memory Architecture</div>
+<h2>Memory — The Big Picture</h2>
+<div class="content mt">
+<div class="two-col">
+<div class="col">
+<h3>Physical Memory (Real RAM)</h3>
+<pre style="border:none;font-size:14px">
+0x00000000 ┌──────────────┐
+           │  BIOS / ROM   │
+0x00100000 ├──────────────┤ ← 1 MB
+           │  Kernel Code  │
+           │  Kernel Data  │
+           ├──────────────┤
+           │              │
+           │  Free Frames  │
+           │  (managed by  │
+           │   allocator)  │
+           │              │
+           ├──────────────┤
+           │  MMIO Region  │
+           └──────────────┘
+</pre>
+</div>
+<div class="col">
+<h3>Virtual Memory (Per Process)</h3>
+<pre style="border:none;font-size:14px">
+0xFFFFFFFFFFFFFFFF ┌──────────┐
+                   │  Kernel   │ ← Shared
+                   │  (Ring 0  │   mapping
+                   │   only)   │   in all
+0xFFFF800000000000 ├──────────┤   spaces
+                   │          │
+                   │  (hole)   │
+                   │          │
+0x00007FFFFFFFFFFF ├──────────┤
+                   │  Stack ↓  │
+                   │          │
+                   │  Heap ↑   │
+                   │  Code     │
+0x0000000000400000 ├──────────┤
+                   │ Reserved  │
+0x0000000000000000 └──────────┘
+</pre>
+</div>
+</div>
+</div>
+<div class="slide-num">15 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 16: Physical Memory Manager ==================== -->
+<div class="slide" id="s15">
+<div class="slide-section">Memory Architecture</div>
+<h2>Physical Memory Manager — Frame Allocator</h2>
+<div class="content mt">
+<div class="highlight">Tracks which 4KB physical frames are free or used. Kernel-only. This is where all physical memory allocation starts.</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Bitmap Allocator (Our Choice)</h3>
+<pre style="border:none;font-size:14px">
+Frame:  0  1  2  3  4  5  6  7
+Bitmap: 1  1  1  0  0  1  0  0
+        ↑        ↑     ↑
+      kernel   free  allocated
+       code         by thread
+
+<span class="keyword">alloc_frame()</span>
+  → scan for first 0
+  → set to 1, return address
+
+<span class="keyword">free_frame(addr)</span>
+  → set bit to 0
+</pre>
+</div>
+<div class="col">
+<h3>Why Bitmap?</h3>
+<ul class="check">
+<li>Simple — one bit per 4KB frame</li>
+<li>Deterministic allocation time</li>
+<li>Easy to initialize from GRUB memory map</li>
+<li>Good enough for our scale</li>
+</ul>
+<h3 style="margin-top:16px">Interface</h3>
+<pre style="border:none;font-size:14px">
+<span class="type">void</span>     pmm_init(multiboot_info);
+<span class="type">void</span>*    pmm_alloc_frame();
+<span class="type">void</span>     pmm_free_frame(<span class="type">void</span>* addr);
+</pre>
+</div>
+</div>
+</div>
+<div class="slide-num">16 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 17: Virtual Memory / Paging ==================== -->
+<div class="slide" id="s16">
+<div class="slide-section">Memory Architecture</div>
+<h2>x86-64 Paging — 4-Level Page Tables</h2>
+<div class="content mt">
+<pre style="font-size:14px">
+Virtual Address (48 bits used):
+┌────────┬────────┬────────┬────────┬────────────┐
+│ PML4   │ PDPT   │  PD    │  PT    │  Offset    │
+│ 9 bits │ 9 bits │ 9 bits │ 9 bits │  12 bits   │
+└───┬────┴───┬────┴───┬────┴───┬────┴────────────┘
+    │        │        │        │
+    ▼        ▼        ▼        ▼
+  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
+  │PML4 │→│PDPT │→│ PD  │→│ PT  │→ Physical Frame + Offset
+  │Table│ │Table│ │Table│ │Table│
+  └─────┘ └─────┘ └─────┘ └─────┘
+    512     512     512     512     = 256 TB addressable
+  entries entries entries entries
+
+Each entry: 64 bits
+  ├── Physical address of next table (bits 12-51)
+  ├── Present bit (P)       — is this entry valid?
+  ├── Read/Write bit (R/W)  — writable?
+  ├── User/Supervisor (U/S) — Ring 3 accessible?
+  └── No-Execute (NX)       — executable?
+</pre>
+<div class="highlight mt">The <strong>U/S bit</strong> is how the CPU enforces memory isolation. Kernel pages have U/S=0, so Ring 3 code faults when touching them.</div>
+</div>
+<div class="slide-num">17 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 18: Address Space Struct ==================== -->
+<div class="slide" id="s17">
+<div class="slide-section">Memory Architecture</div>
+<h2>Address Space — The Isolation Unit</h2>
+<div class="content mt">
+<div class="two-col">
+<div class="col">
+<h3>Design Decision</h3>
+<div class="highlight" style="font-size:15px">Address Space ≠ Thread<br>Address Space = Memory Ownership<br>Thread = Execution Context</div>
+<pre style="border:none;font-size:14px;margin-top:16px">
+Address Space A
+    ├── Thread 1  (own stack, regs)
+    ├── Thread 2  (own stack, regs)
+    └── Thread 3  (own stack, regs)
+    
+    Shared: code, heap, page tables
+</pre>
+</div>
+<div class="col">
+<h3>Structure</h3>
+<pre style="border:none;font-size:14px">
+<span class="type">struct</span> address_space {
+    <span class="type">int</span> id;
+    <span class="type">uint64_t</span> *pml4;
+    <span class="type">int</span> ref_count;
+    <span class="type">struct</span> thread *threads;
+};
+</pre>
+<h3 style="margin-top:16px">Key Operations</h3>
+<ul>
+<li><code>as_create()</code> — new PML4 + kernel mapping</li>
+<li><code>as_map(vaddr, paddr, flags)</code></li>
+<li><code>as_unmap(vaddr)</code></li>
+<li><code>as_switch(as)</code> — load CR3</li>
+<li><code>as_destroy()</code> — free all frames</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num">18 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 19: Higher Half Kernel ==================== -->
+<div class="slide" id="s18">
+<div class="slide-section">Memory Architecture</div>
+<h2>Virtual Memory Layout — Higher-Half Kernel</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="comment">Address Space Layout (every process sees this)</span>
+
+0xFFFFFFFFFFFFFFFF ┌────────────────────────────────┐
+                   │  Kernel Stack (per-thread)      │ ← Ring 0 only
+                   │  Kernel Heap                    │
+                   │  Kernel Code + Data             │
+0xFFFF800000000000 ├────────────────────────────────┤ <span class="keyword">← KERNEL_BASE</span>
+                   │                                │
+                   │   Non-canonical hole            │ ← CPU faults here
+                   │   (not addressable)             │
+                   │                                │
+0x00007FFFFFFFFFFF ├────────────────────────────────┤
+                   │  User Stack  ↓                  │
+                   │                                │
+                   │  (grows toward heap)            │
+                   │                                │
+                   │  User Heap   ↑                  │
+                   │  User BSS                      │
+                   │  User Data                     │
+                   │  User Code                     │
+0x0000000000400000 ├────────────────────────────────┤
+                   │  Reserved / NULL guard          │
+0x0000000000000000 └────────────────────────────────┘
+
+<span class="keyword">Key:</span> Kernel pages have U/S bit = 0 → invisible to Ring 3
+      User pages have U/S bit = 1 → accessible to Ring 3
+</pre>
+</div>
+<div class="slide-num">19 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 20: Page Fault ==================== -->
+<div class="slide" id="s19">
+<div class="slide-section">Memory Architecture</div>
+<h2>Page Fault — When Memory Access Fails</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+Process accesses virtual address
+         │
+         ▼
+   Page Table Walk
+         │
+    ┌────┴────┐
+    │         │
+ Present?   Not Present
+    │         │
+    ▼         ▼
+ Check      <span class="keyword">PAGE FAULT</span> (Exception #14)
+ perms           │
+    │            ▼
+    │      CPU pushes:
+ Allowed?    • Error code (R/W, U/S, P)
+    │        • CR2 = faulting address
+    │            │
+    ▼            ▼
+ Access OK   Kernel handler decides:
+                 │
+          ┌──────┴──────┐
+          │             │
+     Valid fault    Invalid fault
+     (future:       │
+      demand        ▼
+      paging)    <span class="keyword">Kill thread</span>
+</pre>
+<div class="highlight mt"><strong>Phase 1:</strong> All page faults → kill the thread and log.<br><strong>Phase 2:</strong> User-space pager handles valid faults (demand paging).</div>
+</div>
+<div class="slide-num">20 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 21: Thread Model ==================== -->
+<div class="slide" id="s20">
+<div class="slide-section">Threading</div>
+<h2>Thread — The Schedulable Unit</h2>
+<div class="content mt">
+<div class="highlight">CPU schedules <strong>execution</strong>, not memory ownership. Thread = execution context. Address Space = memory.</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Thread Structure</h3>
+<pre style="border:none;font-size:14px">
+<span class="type">struct</span> thread {
+    <span class="type">int</span> id;
+    <span class="type">enum</span> thread_state state;
+
+    <span class="type">void</span> *rsp;
+    <span class="type">void</span> *kernel_stack_top;
+
+    <span class="type">struct</span> thread *next;
+
+    <span class="comment">// IPC</span>
+    <span class="type">struct</span> thread *waiting_for;
+    <span class="type">struct</span> thread *send_queue;
+    <span class="type">struct</span> ipc_message pending_msg;
+
+    <span class="comment">// Memory</span>
+    <span class="type">struct</span> address_space *addr_space;
+};
+</pre>
+</div>
+<div class="col">
+<h3>What a Thread Owns</h3>
+<ul class="check">
+<li><strong>Registers</strong> — RAX..R15, RFLAGS</li>
+<li><strong>Stack pointer</strong> — RSP (saved/restored)</li>
+<li><strong>Kernel stack</strong> — for syscall/interrupt handling</li>
+<li><strong>State</strong> — RUNNING / RUNNABLE / BLOCKED</li>
+<li><strong>IPC state</strong> — pending message, queues</li>
+</ul>
+<h3 style="margin-top:16px">What a Thread Shares</h3>
+<ul>
+<li>Address space (with sibling threads)</li>
+<li>Code and heap mappings</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num">21 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 22: Thread States ==================== -->
+<div class="slide" id="s21">
+<div class="slide-section">Threading</div>
+<h2>Thread State Machine</h2>
+<div class="content mt center">
+<div class="flex-row mb" style="margin-bottom:30px">
+<div class="state-box runnable">RUNNABLE</div>
+<div class="arrow-right">→</div>
+<div class="state-box running">RUNNING</div>
+<div class="arrow-right">→</div>
+<div class="state-box blocked">BLOCKED</div>
+</div>
+<pre style="font-size:16px;text-align:left">
+              schedule()
+ RUNNABLE ─────────────────► RUNNING
+     ▲                          │
+     │                          │ ipc_send() / ipc_recv()
+     │                          │ (no partner ready)
+     │                          ▼
+     │                       BLOCKED
+     │                          │
+     └──────────────────────────┘
+            wakeup (partner arrives)
+
+ Also:
+     RUNNING ──► RUNNABLE    (timer preemption / yield)
+
+</pre>
+<table class="grid-table mt" style="max-width:700px;margin:20px auto 0">
+<tr><th>State</th><th>Location</th><th>Meaning</th></tr>
+<tr><td><span class="tag green">RUNNING</span></td><td>On CPU (current_thread)</td><td>Actively executing</td></tr>
+<tr><td><span class="tag blue">RUNNABLE</span></td><td>Run queue</td><td>Ready, waiting for CPU</td></tr>
+<tr><td><span class="tag red">BLOCKED</span></td><td>IPC send queue</td><td>Waiting for event</td></tr>
+</table>
+</div>
+<div class="slide-num">22 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 23: Scheduler ==================== -->
+<div class="slide" id="s22">
+<div class="slide-section">Scheduling</div>
+<h2>Round Robin Scheduler</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Run Queue (FIFO)</h3>
+<pre style="border:none;font-size:14px">
+<span class="type">struct</span> run_queue {
+    <span class="type">struct</span> thread *head;
+    <span class="type">struct</span> thread *tail;
+};
+
+<span class="comment">Visually:</span>
+HEAD → [T1] → [T2] → [T3] → NULL
+                              ↑
+                             TAIL
+</pre>
+<h3 style="margin-top:20px">Scheduler Flow</h3>
+<pre style="border:none;font-size:13px">
+Timer Interrupt fires
+    │
+    ▼
+current→state = RUNNABLE
+enqueue(current) at tail
+    │
+    ▼
+next = dequeue() from head
+next→state = RUNNING
+    │
+    ▼
+context_switch(current, next)
+</pre>
+</div>
+<div class="col">
+<h3>Invariants (MUST hold)</h3>
+<ul class="check">
+<li>RUNNING thread is <strong>never</strong> in run queue</li>
+<li>Only RUNNABLE threads in run queue</li>
+<li>BLOCKED threads are <strong>never</strong> scheduled</li>
+<li>Each thread in <strong>exactly one</strong> place</li>
+</ul>
+<h3 style="margin-top:20px">Idle Thread</h3>
+<div class="highlight" style="font-size:14px">When run queue is empty, schedule the <strong>idle thread</strong> which executes <code>hlt</code> in a loop — puts CPU in low-power state until next interrupt.</div>
+<pre style="border:none;font-size:13px">
+<span class="type">void</span> idle_thread() {
+    <span class="keyword">while</span>(1) {
+        <span class="keyword">asm</span>(<span class="string">"hlt"</span>);
+    }
+}
+</pre>
+</div>
+</div>
+<div class="slide-num">23 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 24: Context Switch ==================== -->
+<div class="slide" id="s23">
+<div class="slide-section">Context Switching</div>
+<h2>Context Switch — The Core Mechanism</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="comment">What gets saved/restored per thread:</span>
+
+Callee-saved registers (your code saves):
+    RBX, RBP, R12, R13, R14, R15, RSP
+
+Interrupt frame (CPU saves automatically):
+    RIP, CS, RFLAGS, RSP, SS
+
+
+<span class="comment">The actual switch:</span>
+
+Thread A (RUNNING)                    Thread B (was RUNNABLE)
+     │                                     ▲
+     ▼                                     │
+ Save RBX, RBP, R12-R15              Restore RBX, RBP, R12-R15
+     │                                     ▲
+     ▼                                     │
+ A→rsp = current RSP ──── swap ────► RSP = B→rsp
+     │                                     ▲
+     ▼                                     │
+ Update TSS.rsp0 = B→kernel_stack_top      │
+     │                                     │
+     ▼                                     │
+ Switch CR3 if different address space     │
+     │                                     │
+     └─────────────► <span class="keyword">iretq</span> ───────────────┘
+                   (restores RIP, RFLAGS, RSP, CS, SS)
+</pre>
+</div>
+<div class="slide-num">24 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 25: Context Switch Detail ==================== -->
+<div class="slide" id="s24">
+<div class="slide-section">Context Switching</div>
+<h2>Context Switch — CPU-Level Detail</h2>
+<div class="content mt">
+<pre style="font-size:14px">
+<span class="comment">Step-by-step: what happens when timer fires while Thread A runs in user mode</span>
+
+ 1. Hardware timer fires IRQ 0
+         │
+ 2. CPU detects interrupt:
+    ├── Reads IDT[32] → gets handler address, target CS (kernel)
+    ├── Privilege change (Ring 3 → Ring 0):
+    │     └── Loads RSP from TSS.rsp0 (Thread A's kernel stack)
+    └── CPU pushes onto kernel stack:
+              SS          ← user stack segment
+              RSP         ← user stack pointer
+              RFLAGS      ← user flags
+              CS          ← user code segment
+              RIP         ← user instruction pointer (return address)
+         │
+ 3. Your interrupt stub (ASM) runs:
+    ├── push all general registers (RAX, RBX, ... R15)
+    ├── call scheduler_tick()     ← C code
+         │
+ 4. Scheduler decides to switch:
+    ├── A→rsp = current RSP (points to saved registers on kernel stack)
+    ├── A→state = RUNNABLE, enqueue(A)
+    ├── B = dequeue(), B→state = RUNNING
+    ├── RSP = B→rsp (now on B's kernel stack, with B's saved registers)
+    ├── TSS.rsp0 = B→kernel_stack_top
+    └── CR3 = B→addr_space→pml4 (if different)
+         │
+ 5. Interrupt stub restores:
+    ├── pop all general registers (from B's stack now!)
+    └── <span class="keyword">iretq</span> → pops RIP, CS, RFLAGS, RSP, SS
+              → CPU now executing Thread B in Ring 3
+</pre>
+</div>
+<div class="slide-num">25 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 26: IPC Overview ==================== -->
+<div class="slide" id="s25">
+<div class="slide-section">IPC Design</div>
+<h2>IPC — The Microkernel's Nervous System</h2>
+<div class="content mt">
+<div class="highlight">In a microkernel, <strong>everything communicates via IPC</strong>. App → FS → Disk Driver: every arrow is an IPC message. Performance of IPC = performance of the entire system.</div>
+<div class="three-col mt">
+<div class="col center">
+<h3>Synchronous</h3>
+<p>Sender blocks until receiver gets the message</p>
+<span class="tag green">Our choice ✓</span>
+<ul class="check" style="margin-top:8px;font-size:14px">
+<li>Simple</li>
+<li>No kernel buffering</li>
+<li>Deterministic</li>
+</ul>
+</div>
+<div class="col center">
+<h3>Fixed-Size Messages</h3>
+<p>Every message is the same size (e.g., 64 bytes)</p>
+<span class="tag green">Our choice ✓</span>
+<ul class="check" style="margin-top:8px;font-size:14px">
+<li>No malloc in kernel</li>
+<li>Predictable</li>
+<li>Simple validation</li>
+</ul>
+</div>
+<div class="col center">
+<h3>Copy-Based</h3>
+<p>Message data is copied, not shared via pointers</p>
+<span class="tag green">Our choice ✓</span>
+<ul class="check" style="margin-top:8px;font-size:14px">
+<li>Full isolation</li>
+<li>No shared memory bugs</li>
+<li>Easy to validate</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num">26 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 27: IPC Message ==================== -->
+<div class="slide" id="s26">
+<div class="slide-section">IPC Design</div>
+<h2>IPC Message Structure</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Message Format</h3>
+<pre style="border:none;font-size:15px">
+<span class="keyword">#define</span> IPC_MSG_DATA_SIZE 56
+
+<span class="type">struct</span> ipc_message {
+    <span class="type">int</span>      sender_id;
+    <span class="type">int</span>      msg_type;
+    <span class="type">uint8_t</span>  data[IPC_MSG_DATA_SIZE];
+};
+
+<span class="comment">// Total: 64 bytes (fits in cache line)</span>
+</pre>
+<h3 style="margin-top:20px">Ownership Rule</h3>
+<div class="highlight" style="font-size:14px">Message is stored <strong>inside the blocked sender's thread struct</strong>. No global IPC buffers. No kernel allocation.</div>
+</div>
+<div class="col">
+<h3>Why This Works</h3>
+<pre style="border:none;font-size:14px">
+Thread T1 (BLOCKED, waiting to send)
+ └── thread.pending_msg = {
+         sender_id: 1,
+         msg_type:  MSG_WRITE,
+         data:      [...]
+     }
+
+Thread T2 (BLOCKED, waiting to send)
+ └── thread.pending_msg = {
+         sender_id: 2,
+         msg_type:  MSG_READ,
+         data:      [...]
+     }
+
+Receiver B:
+ └── B.send_queue → T1 → T2 → NULL
+</pre>
+<h3 style="margin-top:16px">Error Policy</h3>
+<p>If message > receiver buffer: <span class="tag red">ERROR</span> (no truncation)</p>
+</div>
+</div>
+<div class="slide-num">27 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 28: IPC Queue Model ==================== -->
+<div class="slide" id="s27">
+<div class="slide-section">IPC Design</div>
+<h2>IPC Queue Architecture</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="comment">Receiver-owned sender queue model:</span>
+
+Each thread that can receive has a <span class="keyword">send_queue</span>:
+
+  Thread B (Receiver):
+       B.send_queue → [T1] → [T2] → [T3] → NULL
+
+Each blocked sender tracks who it's waiting for:
+
+  T1.waiting_for = B
+  T2.waiting_for = B
+  T3.waiting_for = B
+
+
+<span class="comment">Data relationship:</span>
+
+  ┌──────┐     waiting_for     ┌──────┐
+  │  T1  │ ──────────────────► │      │
+  └──────┘                     │      │
+  ┌──────┐     waiting_for     │  B   │
+  │  T2  │ ──────────────────► │      │
+  └──────┘                     │      │
+  ┌──────┐     waiting_for     │      │
+  │  T3  │ ──────────────────► │      │
+  └──────┘                     └──┬───┘
+                                  │
+                            send_queue
+                                  │
+                          T1 → T2 → T3
+</pre>
+</div>
+<div class="slide-num">28 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 29: IPC Case 1 ==================== -->
+<div class="slide" id="s28">
+<div class="slide-section">IPC Flows</div>
+<h2>IPC Case 1: Send → Receiver NOT Ready</h2>
+<div class="content mt">
+<pre style="font-size:16px">
+Thread A calls: <span class="keyword">ipc_send(B, &msg)</span>
+         │
+         ▼
+Kernel checks: Is B blocked in recv()?
+         │
+         ▼
+    <span class="red">NO</span> — B is not waiting for a message
+         │
+         ▼
+Kernel actions:
+    1. A.state = <span class="keyword">BLOCKED</span>
+    2. A.waiting_for = B
+    3. A.pending_msg = msg  <span class="comment">(copy message into A's struct)</span>
+    4. Append A to B.send_queue
+    5. Remove A from scheduler
+         │
+         ▼
+Scheduler picks next RUNNABLE thread
+         │
+         ▼
+A stays blocked until B calls recv()
+</pre>
+</div>
+<div class="slide-num">29 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 30: IPC Case 2 ==================== -->
+<div class="slide" id="s29">
+<div class="slide-section">IPC Flows</div>
+<h2>IPC Case 2: Recv → Sender Available</h2>
+<div class="content mt">
+<pre style="font-size:16px">
+Thread B calls: <span class="keyword">ipc_recv(&buf)</span>
+         │
+         ▼
+Kernel checks: Is B.send_queue empty?
+         │
+         ▼
+    <span class="green">NO</span> — There are senders waiting!
+         │
+         ▼
+Kernel actions:
+    1. sender = dequeue(B.send_queue)
+    2. Copy sender.pending_msg → B's buffer  <span class="comment">(the actual data transfer)</span>
+    3. sender.state = <span class="keyword">RUNNABLE</span>
+    4. sender.waiting_for = NULL
+    5. Enqueue sender in run queue
+    6. B continues running (already RUNNING)
+         │
+         ▼
+Both threads can now proceed
+</pre>
+<div class="highlight mt"><strong>Deferred wakeup:</strong> Kernel does NOT immediately switch to the woken sender. The scheduler decides when it actually runs. This keeps the scheduler in control.</div>
+</div>
+<div class="slide-num">30 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 31: IPC Case 3 ==================== -->
+<div class="slide" id="s30">
+<div class="slide-section">IPC Flows</div>
+<h2>IPC Case 3: Recv → No Sender Available</h2>
+<div class="content mt">
+<pre style="font-size:16px">
+Thread B calls: <span class="keyword">ipc_recv(&buf)</span>
+         │
+         ▼
+Kernel checks: Is B.send_queue empty?
+         │
+         ▼
+    <span class="red">YES</span> — Nobody is trying to send to B
+         │
+         ▼
+Kernel actions:
+    1. B.state = <span class="keyword">BLOCKED</span>
+    2. B is now "waiting for a sender"
+    3. Remove B from scheduler
+         │
+         ▼
+Scheduler picks next RUNNABLE thread
+
+
+<span class="comment">Later, when Thread A calls send(B):</span>
+    Kernel sees B is blocked in recv()
+         │
+         ▼
+    1. Copy A.msg → B's buffer
+    2. B.state = RUNNABLE, enqueue(B)
+    3. A continues (or blocks, depending on semantics)
+</pre>
+</div>
+<div class="slide-num">31 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 32: IPC Combined ==================== -->
+<div class="slide" id="s31">
+<div class="slide-section">IPC Flows</div>
+<h2>IPC — Combined Interaction Timeline</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="keyword">Thread A</span>              <span class="keyword">Kernel</span>                    <span class="keyword">Thread B</span>
+   │                     │                           │
+   │  send(B, msg)       │                           │
+   │────────────────────►│                           │
+   │                     │  B not in recv()          │
+   │                     │  block A                  │
+   │                     │  queue A on B.send_queue  │
+   │  [BLOCKED]          │                           │
+   │                     │                           │
+   │                     │                     recv()│
+   │                     │◄──────────────────────────│
+   │                     │                           │
+   │                     │  dequeue A                │
+   │                     │  copy msg → B's buffer    │
+   │                     │  A → RUNNABLE             │
+   │                     │                           │
+   │  [RUNNABLE]         │                    got msg│
+   │                     │                           │
+   ▼                     ▼                           ▼
+</pre>
+</div>
+<div class="slide-num">32 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 33: Syscall Design ==================== -->
+<div class="slide" id="s32">
+<div class="slide-section">Syscalls</div>
+<h2>Syscall ABI — User → Kernel Interface</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Register Convention</h3>
+<table class="grid-table">
+<tr><th>Register</th><th>Purpose</th></tr>
+<tr><td>RAX</td><td>Syscall number</td></tr>
+<tr><td>RDI</td><td>Argument 1</td></tr>
+<tr><td>RSI</td><td>Argument 2</td></tr>
+<tr><td>RDX</td><td>Argument 3</td></tr>
+<tr><td>R10</td><td>Argument 4</td></tr>
+<tr><td>RAX</td><td>Return value</td></tr>
+</table>
+<p class="small mt">Follows Linux convention for familiarity. RCX and R11 are clobbered by syscall instruction.</p>
+</div>
+<div class="col">
+<h3>Syscall Numbers</h3>
+<table class="grid-table">
+<tr><th>#</th><th>Name</th><th>Args</th></tr>
+<tr><td>0</td><td>SYS_SEND</td><td>tid, msg_ptr</td></tr>
+<tr><td>1</td><td>SYS_RECV</td><td>buf_ptr</td></tr>
+<tr><td>2</td><td>SYS_YIELD</td><td>(none)</td></tr>
+<tr><td>3</td><td>SYS_EXIT</td><td>exit_code</td></tr>
+<tr><td>4</td><td>SYS_CREATE</td><td>entry, stack</td></tr>
+<tr><td>5</td><td>SYS_MAP_IO</td><td>port, size</td></tr>
+</table>
+<p class="small mt">Minimal set. Expand later as needed.</p>
+</div>
+</div>
+<div class="slide-num">33 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 34: Syscall Flow ==================== -->
+<div class="slide" id="s33">
+<div class="slide-section">Syscalls</div>
+<h2>Syscall Flow — Step by Step</h2>
+<div class="content mt">
+<pre style="font-size:14px">
+User code:
+    <span class="keyword">mov</span> rax, 0          <span class="comment">; SYS_SEND</span>
+    <span class="keyword">mov</span> rdi, target_tid
+    <span class="keyword">mov</span> rsi, msg_ptr
+    <span class="keyword">syscall</span>             <span class="comment">; CPU transfers control</span>
+
+CPU (hardware, automatic):
+    1. RCX = return RIP (saved for sysret)
+    2. R11 = RFLAGS (saved for sysret)
+    3. RIP = LSTAR MSR value (your syscall entry point)
+    4. CS  = STAR MSR kernel code segment
+    5. SS  = STAR MSR kernel data segment
+    <span class="comment">// NOTE: RSP is NOT switched! You must do this manually.</span>
+
+Kernel entry (assembly):
+    <span class="keyword">swapgs</span>              <span class="comment">; access per-CPU data (get kernel stack)</span>
+    save user RSP
+    load kernel RSP from TSS
+    push all registers
+    <span class="keyword">call</span> syscall_dispatch
+
+Kernel (C):
+    <span class="keyword">switch</span>(rax) {
+        <span class="keyword">case</span> SYS_SEND:  validate(rdi, rsi); ipc_send(...); <span class="keyword">break</span>;
+        <span class="keyword">case</span> SYS_RECV:  validate(rdi);      ipc_recv(...); <span class="keyword">break</span>;
+        ...
+    }
+
+Return:
+    pop all registers
+    restore user RSP
+    <span class="keyword">swapgs</span>
+    <span class="keyword">sysretq</span>             <span class="comment">; CPU: RIP=RCX, RFLAGS=R11, back to Ring 3</span>
+</pre>
+</div>
+<div class="slide-num">34 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 35: Interrupt Flow ==================== -->
+<div class="slide" id="s34">
+<div class="slide-section">Interrupts</div>
+<h2>Interrupt Flow — Hardware to Scheduler</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="comment">Timer Interrupt (drives preemptive scheduling):</span>
+
+Hardware timer (PIT / APIC) ──► IRQ 0 ──► IDT vector 32
+         │
+         ▼
+CPU (automatic):
+    Switch to Ring 0 (if from Ring 3)
+    Load RSP from TSS.rsp0
+    Push: SS, RSP, RFLAGS, CS, RIP  (interrupt frame)
+    Jump to handler address from IDT[32]
+         │
+         ▼
+ASM stub:
+    push all general registers (RAX..R15)
+    call <span class="keyword">timer_handler</span>
+         │
+         ▼
+timer_handler (C):
+    ├── Acknowledge interrupt (send EOI to PIC/APIC)
+    ├── Increment system tick counter
+    ├── Check if timeslice expired
+    │       │
+    │   YES─┤
+    │       ▼
+    │   call <span class="keyword">schedule()</span>
+    │       ├── current → RUNNABLE, enqueue
+    │       ├── next = dequeue
+    │       ├── next → RUNNING
+    │       └── context_switch(current, next)
+    │
+    └── Return from handler
+         │
+         ▼
+ASM stub: pop registers, <span class="keyword">iretq</span>
+</pre>
+</div>
+<div class="slide-num">35 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 36: Interrupt to IPC ==================== -->
+<div class="slide" id="s35">
+<div class="slide-section">Interrupts</div>
+<h2>Interrupt → IPC — Device Events to User Space</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="comment">How a hardware event reaches a user-space driver:</span>
+
+ Serial port receives byte
+         │
+         ▼
+ Hardware raises IRQ 4 → IDT vector 36
+         │
+         ▼
+ Kernel interrupt handler:
+    1. Acknowledge interrupt (EOI)
+    2. Mask this IRQ (prevent storms)
+    3. Look up: which thread registered for IRQ 4?
+    4. Send lightweight IPC notification to that thread
+         │
+         ▼
+ Serial driver thread (user space):
+    was BLOCKED in recv()
+    now RUNNABLE with notification message
+         │
+         ▼
+ Driver wakes up:
+    1. Read serial port data (via SYS_MAP_IO)
+    2. Process data
+    3. Unmask IRQ (SYS_IRQ_ACK)
+    4. Go back to recv() — wait for next interrupt
+</pre>
+<div class="highlight mt">The kernel never interprets device data. It just routes the interrupt signal. The driver (in user space) does all the real work.</div>
+</div>
+<div class="slide-num">36 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 37: Driver Architecture ==================== -->
+<div class="slide" id="s36">
+<div class="slide-section">Drivers</div>
+<h2>User-Space Driver Architecture</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Why User-Space Drivers?</h3>
+<ul class="check">
+<li><strong>Fault isolation</strong> — driver crash ≠ kernel crash</li>
+<li><strong>Restartable</strong> — just respawn the process</li>
+<li><strong>Debuggable</strong> — regular user process, use normal tools</li>
+<li><strong>Smaller kernel</strong> — less code in Ring 0</li>
+</ul>
+<h3 style="margin-top:20px">Cost</h3>
+<ul class="cross">
+<li>Extra IPC overhead per I/O operation</li>
+<li>Context switch to reach driver</li>
+</ul>
+<div class="highlight mt" style="font-size:14px">For our scale, the overhead is negligible. Correctness > raw throughput.</div>
+</div>
+<div class="col">
+<h3>Serial Driver (First Target)</h3>
+<pre style="border:none;font-size:14px">
+<span class="comment">// User-space serial driver</span>
+<span class="type">void</span> serial_driver() {
+    <span class="comment">// Request I/O port access</span>
+    sys_map_io(0x3F8, 8);
+
+    <span class="comment">// Register for IRQ 4</span>
+    sys_irq_register(4);
+
+    <span class="keyword">while</span> (1) {
+        <span class="comment">// Block until interrupt</span>
+        msg = sys_recv();
+
+        <span class="comment">// Handle the I/O</span>
+        byte = inb(0x3F8);
+        process(byte);
+
+        <span class="comment">// Acknowledge IRQ</span>
+        sys_irq_ack(4);
+    }
+}
+</pre>
+</div>
+</div>
+<div class="slide-num">37 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 38: Security Model ==================== -->
+<div class="slide" id="s37">
+<div class="slide-section">Security</div>
+<h2>Security Model — Defense in Depth</h2>
+<div class="content mt">
+<table class="grid-table">
+<tr><th>Layer</th><th>Mechanism</th><th>What It Prevents</th></tr>
+<tr><td><strong>CPU Rings</strong></td><td>Ring 0 / Ring 3 privilege</td><td>User code executing privileged instructions (IN/OUT, MOV CR3, CLI)</td></tr>
+<tr><td><strong>Page Tables</strong></td><td>U/S bit per page</td><td>User code reading/writing kernel memory</td></tr>
+<tr><td><strong>Address Spaces</strong></td><td>Separate CR3 per process</td><td>Process A reading Process B's memory</td></tr>
+<tr><td><strong>Syscall Validation</strong></td><td>Kernel checks all arguments</td><td>Forged pointers, out-of-range values, invalid thread IDs</td></tr>
+<tr><td><strong>IPC Isolation</strong></td><td>Copy-based messages</td><td>Shared-memory corruption, TOCTOU attacks</td></tr>
+<tr><td><strong>NX Bit</strong></td><td>No-Execute on data pages</td><td>Code injection (execute data as instructions)</td></tr>
+<tr><td><strong>Null Guard</strong></td><td>First page unmapped</td><td>NULL pointer dereference exploits</td></tr>
+</table>
+</div>
+<div class="slide-num">38 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 39: Fault Isolation ==================== -->
+<div class="slide" id="s38">
+<div class="slide-section">Security</div>
+<h2>Fault Isolation — When Things Go Wrong</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>User Thread Crashes</h3>
+<pre style="border:none;font-size:14px">
+User thread does something bad:
+  • NULL dereference
+  • Stack overflow
+  • Invalid instruction
+         │
+         ▼
+CPU generates exception
+         │
+         ▼
+Kernel exception handler:
+  1. Log the fault (serial)
+  2. Kill the thread
+  3. Wake any threads blocked
+     on IPC with this thread
+  4. Continue scheduling
+         │
+         ▼
+<span class="keyword">Kernel keeps running normally</span>
+</pre>
+</div>
+<div class="col">
+<h3>Kernel Panic (Fatal)</h3>
+<pre style="border:none;font-size:14px">
+Kernel detects unrecoverable error:
+  • Double fault
+  • Corrupted kernel state
+  • Assert failure in kernel code
+         │
+         ▼
+kernel_panic(message):
+  1. Disable interrupts (cli)
+  2. Print message to serial
+  3. Print register dump
+  4. Halt CPU (hlt loop)
+         │
+         ▼
+<span class="keyword">System stops safely</span>
+<span class="comment">(no further corruption)</span>
+</pre>
+</div>
+</div>
+<div class="highlight mt">The goal: <strong>user faults are routine</strong> (handle and continue). <strong>Kernel faults are extraordinary</strong> (stop everything safely).</div>
+<div class="slide-num">39 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 40: Complete System Flow ==================== -->
+<div class="slide" id="s39">
+<div class="slide-section">Complete System</div>
+<h2>Complete System Control Flow</h2>
+<div class="content mt">
+<pre style="font-size:14px">
+┌─────────────────────────────────────────────────────────────┐
+│                     USER SPACE (Ring 3)                      │
+│                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐              │
+│  │   App    │    │  Serial  │    │  Future  │              │
+│  │  Thread  │    │  Driver  │    │    FS    │              │
+│  └────┬─────┘    └────┬─────┘    └──────────┘              │
+│       │               │                                     │
+├───────┼───────────────┼─────────────────────────────────────┤
+│       │   syscall     │   syscall                           │
+│       ▼               ▼                                     │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                  KERNEL (Ring 0)                     │    │
+│  │                                                     │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │    │
+│  │  │ Syscall  │  │   IPC    │  │    Scheduler     │  │    │
+│  │  │Dispatch  │─►│  Engine  │─►│  (Round Robin)   │  │    │
+│  │  └──────────┘  └──────────┘  └────────┬─────────┘  │    │
+│  │                                       │             │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌────────▼─────────┐  │    │
+│  │  │ Memory   │  │Interrupt │  │    Context       │  │    │
+│  │  │ Manager  │  │ Handler  │  │    Switch        │  │    │
+│  │  └──────────┘  └────┬─────┘  └──────────────────┘  │    │
+│  │                     │                               │    │
+│  └─────────────────────┼───────────────────────────────┘    │
+│                        │                                     │
+├────────────────────────┼─────────────────────────────────────┤
+│                        │              HARDWARE               │
+│  ┌──────┐  ┌──────┐   │   ┌──────┐  ┌──────┐              │
+│  │ CPU  │  │ RAM  │   │   │Timer │  │Serial│              │
+│  └──────┘  └──────┘   └──►│ PIT  │  │ UART │              │
+│                            └──────┘  └──────┘              │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+<div class="slide-num">40 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 41: End-to-End Scenario ==================== -->
+<div class="slide" id="s40">
+<div class="slide-section">Complete System</div>
+<h2>End-to-End: App Sends Data to Serial Port</h2>
+<div class="content mt">
+<pre style="font-size:14px">
+<span class="comment">1.</span> App thread calls: <span class="keyword">sys_send(serial_driver_tid, "Hello")</span>
+         │
+<span class="comment">2.</span> CPU: syscall → Ring 0, kernel entry
+         │
+<span class="comment">3.</span> Kernel: validate args, call ipc_send()
+         │
+<span class="comment">4.</span> IPC: Is serial driver blocked in recv()?
+         │
+    ┌────┴─────────────────────────────────────┐
+    │                                          │
+  <span class="keyword">YES</span>                                        <span class="keyword">NO</span>
+    │                                          │
+    ▼                                          ▼
+Copy msg → driver's buffer              Block app thread
+Driver → RUNNABLE                       Queue on driver.send_queue
+App continues                           Schedule another thread
+    │                                          │
+    ▼                                          │
+<span class="comment">5.</span> Eventually, serial driver runs:           │
+    │                                          │
+    ▼                                          │
+Driver reads message                           │
+Driver calls: outb(0x3F8, 'H')                │
+              outb(0x3F8, 'e')                 │
+              ...                              │
+    │                                          │
+<span class="comment">6.</span> Byte appears on serial output              │
+    │                                          │
+<span class="comment">7.</span> Driver calls sys_recv() again — waits      │
+         for next message                      │
+</pre>
+</div>
+<div class="slide-num">41 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 42: Known Limitations ==================== -->
+<div class="slide" id="s41">
+<div class="slide-section">Limitations</div>
+<h2>Known Limitations & Future Work</h2>
+<div class="two-col mt">
+<div class="col">
+<h3>Known Issues</h3>
+<ul class="warn">
+<li><strong>Deadlock</strong> — A→send(B), B→send(A). No detection yet.</li>
+<li><strong>No priority</strong> — Round Robin only. Priority inversion possible later.</li>
+<li><strong>Single core</strong> — No SMP support. One CPU only.</li>
+<li><strong>No demand paging</strong> — All memory pre-allocated.</li>
+<li><strong>No thread destruction cleanup</strong> — IPC queues may dangle.</li>
+</ul>
+</div>
+<div class="col">
+<h3>Future Phases</h3>
+<ul>
+<li>Phase 2: Page fault handler + user pager</li>
+<li>Phase 3: Priority scheduler</li>
+<li>Phase 4: Filesystem server</li>
+<li>Phase 5: Network stack</li>
+<li>Phase 6: SMP (multi-core)</li>
+<li>Phase 7: Capability-based security</li>
+</ul>
+</div>
+</div>
+<div class="slide-num">42 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 43: Invariants ==================== -->
+<div class="slide" id="s42">
+<div class="slide-section">Correctness</div>
+<h2>System Invariants — Must ALWAYS Hold</h2>
+<div class="content mt">
+<table class="grid-table">
+<tr><th>#</th><th>Invariant</th><th>Violation Consequence</th></tr>
+<tr><td>1</td><td>RUNNING thread is <strong>never</strong> in the run queue</td><td>Thread runs twice → corruption</td></tr>
+<tr><td>2</td><td>Only RUNNABLE threads are in the run queue</td><td>BLOCKED thread scheduled → data loss</td></tr>
+<tr><td>3</td><td>BLOCKED threads are only in IPC queues</td><td>Lost thread → resource leak</td></tr>
+<tr><td>4</td><td>Each thread exists in <strong>exactly one</strong> place</td><td>Double-free, use-after-free</td></tr>
+<tr><td>5</td><td>Kernel stack is valid before any Ring 3→0 transition</td><td>Triple fault → reset</td></tr>
+<tr><td>6</td><td>TSS.rsp0 matches current thread's kernel_stack_top</td><td>Wrong stack → corruption</td></tr>
+<tr><td>7</td><td>Interrupts disabled during context switch</td><td>Nested switch → stack corruption</td></tr>
+<tr><td>8</td><td>CR3 matches current thread's address space</td><td>Wrong memory → fault or data leak</td></tr>
+</table>
+<div class="highlight mt">These invariants are your debugging checklist. When something breaks, check these first.</div>
+</div>
+<div class="slide-num">43 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 44: Implementation Order ==================== -->
+<div class="slide" id="s43">
+<div class="slide-section">Implementation</div>
+<h2>Implementation Order</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+<span class="tag green">Phase 1</span>  Boot + Serial output
+          <span class="comment">_start → long mode → kernel_main → serial_init → print "Hello"</span>
+              │
+<span class="tag green">Phase 2</span>  GDT + IDT
+          <span class="comment">Proper segments, exception handlers, timer interrupt</span>
+              │
+<span class="tag green">Phase 3</span>  Physical Memory
+          <span class="comment">Parse multiboot memory map, bitmap allocator</span>
+              │
+<span class="tag green">Phase 4</span>  Virtual Memory
+          <span class="comment">Page tables, kernel mapping, address space create/switch</span>
+              │
+<span class="tag green">Phase 5</span>  Threads + Context Switch
+          <span class="comment">Thread struct, kernel stacks, save/restore, round robin</span>
+              │
+<span class="tag green">Phase 6</span>  Syscalls
+          <span class="comment">syscall/sysret, dispatch table, SYS_YIELD</span>
+              │
+<span class="tag green">Phase 7</span>  IPC
+          <span class="comment">send/recv, blocking, queues, message copy</span>
+              │
+<span class="tag green">Phase 8</span>  User-Space Serial Driver
+          <span class="comment">First user process, I/O port delegation, interrupt forwarding</span>
+
+Each phase produces a testable milestone.
+</pre>
+</div>
+<div class="slide-num">44 / 45</div>
+</div>
+
+<!-- ==================== SLIDE 45: Summary ==================== -->
+<div class="slide" id="s44">
+<div class="slide-section">Summary</div>
+<h2>Design Decisions — Locked</h2>
+<div class="content mt">
+<div class="three-col">
+<div class="col">
+<h3>Architecture</h3>
+<ul class="check">
+<li>Microkernel</li>
+<li>x86-64 target</li>
+<li>Multiboot2 boot</li>
+<li>Higher-half kernel</li>
+<li>User-space drivers</li>
+</ul>
+</div>
+<div class="col">
+<h3>Execution</h3>
+<ul class="check">
+<li>Thread-based scheduling</li>
+<li>Round Robin + idle thread</li>
+<li>Separate address spaces</li>
+<li>Preemptive (timer-driven)</li>
+<li>3-state model</li>
+</ul>
+</div>
+<div class="col">
+<h3>Communication</h3>
+<ul class="check">
+<li>Synchronous IPC</li>
+<li>Fixed-size 64-byte messages</li>
+<li>Copy-based transfer</li>
+<li>Receiver-owned send queues</li>
+<li>Deferred wakeup</li>
+</ul>
+</div>
+</div>
+<div style="text-align:center;margin-top:40px">
+<h3 style="color:var(--green);font-size:24px">Ready for Implementation</h3>
+<p class="dim mt">8 phases → each testable → serial-first debugging</p>
+</div>
+</div>
+<div class="slide-num">45 / 45</div>
+</div>
+
+<!-- ==================== NAVIGATION ==================== -->
+<div class="nav">
+<button onclick="go(-1)">← Prev</button>
+<button onclick="go(1)">Next →</button>
+</div>
+
+<script>
+const slides=document.querySelectorAll('.slide');
+let cur=0;
+function go(d){
+    slides[cur].classList.remove('active');
+    cur=Math.max(0,Math.min(slides.length-1,cur+d));
+    slides[cur].classList.add('active');
+    document.getElementById('progress').style.width=((cur+1)/slides.length*100)+'%';
+    updateNums();
+}
+function updateNums(){
+    slides.forEach((s,i)=>{
+        const n=s.querySelector('.slide-num');
+        if(n)n.textContent=(i+1)+' / '+slides.length;
+    });
+}
+document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' ')go(1);
+    if(e.key==='ArrowLeft')go(-1);
+    if(e.key==='Home'){slides[cur].classList.remove('active');cur=0;slides[0].classList.add('active');document.getElementById('progress').style.width=(1/slides.length*100)+'%';}
+    if(e.key==='End'){slides[cur].classList.remove('active');cur=slides.length-1;slides[cur].classList.add('active');document.getElementById('progress').style.width='100%';}
+});
+updateNums();
+document.getElementById('progress').style.width=(1/slides.length*100)+'%';
+</script>
+</body>
+</html>

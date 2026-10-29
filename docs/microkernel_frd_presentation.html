@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microkernel — Functional Requirements Document (FRD v3.0)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--dim:#8b949e;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--orange:#d29922;--purple:#bc8cff;--cyan:#39d353;--pink:#f778ba}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+.slide{display:none;flex-direction:column;justify-content:center;align-items:center;height:100vh;padding:60px 80px;position:relative;animation:fadeIn .4s}
+.slide.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.slide-num{position:absolute;bottom:20px;right:30px;color:var(--dim);font-size:14px}
+.slide-section{position:absolute;top:20px;left:30px;color:var(--accent);font-size:13px;text-transform:uppercase;letter-spacing:2px;font-weight:600}
+h1{font-size:46px;font-weight:700;margin-bottom:10px;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;line-height:1.2}
+h2{font-size:36px;font-weight:700;margin-bottom:20px;color:var(--text);text-align:center}
+h3{font-size:24px;font-weight:600;margin-bottom:12px;color:var(--accent)}
+.subtitle{font-size:22px;color:var(--dim);text-align:center;margin-top:8px}
+.content{max-width:1100px;width:100%}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:30px;width:100%;max-width:1100px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;width:100%;max-width:1100px}
+.col{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px}
+.col h3{font-size:19px;margin-bottom:10px}
+ul{list-style:none;padding:0}
+ul li{padding:5px 0;padding-left:20px;position:relative;font-size:16px;line-height:1.5}
+ul li::before{content:"›";position:absolute;left:0;color:var(--accent);font-weight:bold}
+ul.check li::before{content:"✓";color:var(--green)}
+ul.cross li::before{content:"✗";color:var(--red)}
+ul.warn li::before{content:"⚠";color:var(--orange)}
+pre{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:14px;line-height:1.6;overflow-x:auto;color:var(--text);max-width:1100px;width:100%}
+.tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;margin:3px}
+.tag.green{background:rgba(63,185,80,.15);color:var(--green)}
+.tag.blue{background:rgba(88,166,255,.15);color:var(--accent)}
+.tag.red{background:rgba(248,81,73,.15);color:var(--red)}
+.tag.purple{background:rgba(188,140,255,.15);color:var(--purple)}
+.tag.orange{background:rgba(210,153,34,.15);color:var(--orange)}
+.tag.pink{background:rgba(247,120,186,.15);color:var(--pink)}
+.tag.cyan{background:rgba(57,211,83,.15);color:var(--cyan)}
+.highlight{background:rgba(88,166,255,.1);border-left:3px solid var(--accent);padding:14px 18px;border-radius:0 8px 8px 0;margin:10px 0;font-size:16px}
+.highlight.green{border-left-color:var(--green);background:rgba(63,185,80,.08)}
+.highlight.red{border-left-color:var(--red);background:rgba(248,81,73,.08)}
+.highlight.orange{border-left-color:var(--orange);background:rgba(210,153,34,.08)}
+.grid-table{width:100%;border-collapse:collapse;font-size:15px}
+.grid-table th{background:var(--card);color:var(--accent);padding:10px 14px;text-align:left;border-bottom:2px solid var(--accent);font-weight:600}
+.grid-table td{padding:9px 14px;border-bottom:1px solid var(--border)}
+.grid-table tr:hover td{background:rgba(88,166,255,.05)}
+.nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:100}
+.nav button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s}
+.nav button:hover{border-color:var(--accent);color:var(--accent)}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .3s;z-index:100}
+.center{text-align:center}
+.mt{margin-top:16px}
+.mb{margin-bottom:16px}
+.small{font-size:14px;color:var(--dim)}
+.fr-id{display:inline-block;background:rgba(88,166,255,.15);color:var(--accent);padding:2px 10px;border-radius:6px;font-weight:700;font-size:14px;margin-right:8px;font-family:monospace}
+.fr-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:8px 0}
+.fr-box h4{font-size:17px;margin-bottom:8px;color:var(--text)}
+.fr-box p{font-size:15px;color:var(--dim);line-height:1.5}
+.priority{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;margin-left:8px}
+.priority.p0{background:rgba(248,81,73,.2);color:var(--red)}
+.priority.p1{background:rgba(210,153,34,.2);color:var(--orange)}
+.priority.p2{background:rgba(88,166,255,.2);color:var(--accent)}
+.acceptance{font-size:13px;color:var(--green);margin-top:6px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<!-- ==================== SLIDE 1: Title ==================== -->
+<div class="slide active" id="s0">
+<div class="slide-section">FRD v3.0</div>
+<h1>Functional Requirements Document</h1>
+<p class="subtitle">Microkernel — x86-64 Architecture</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag green">25 Functional Requirements</span>
+<span class="tag blue">10 Functional Areas</span>
+<span class="tag purple">Phase 1 Scope</span>
+</div>
+<div style="margin-top:40px;max-width:600px;text-align:center">
+<p class="small">Version 3.0 — Gaps from v2.0 resolved: physical memory management, idle thread, thread destruction, syscall ABI, notification mechanism, boot sequence details</p>
+</div>
+<p class="small mt" style="margin-top:30px">Use ← → arrow keys to navigate</p>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 2: Document Purpose ==================== -->
+<div class="slide" id="s1">
+<div class="slide-section">Overview</div>
+<h2>What This Document Defines</h2>
+<div class="content mt">
+<div class="highlight">The FRD specifies <strong>what</strong> the system must do — not <strong>how</strong>. Each requirement is testable, traceable, and maps to a corresponding section in the Low Level Design (LLD).</div>
+<div class="two-col mt">
+<div class="col">
+<h3>FRD Answers</h3>
+<ul class="check">
+<li>What must the kernel do?</li>
+<li>What must the kernel guarantee?</li>
+<li>What behaviors are required?</li>
+<li>What are the acceptance criteria?</li>
+<li>What is in scope vs. deferred?</li>
+</ul>
+</div>
+<div class="col">
+<h3>FRD Does NOT Answer</h3>
+<ul class="cross">
+<li>Which data structures to use</li>
+<li>Which algorithms to implement</li>
+<li>How many lines of code</li>
+<li>Internal API signatures</li>
+<li>Performance targets (that's NFR)</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 3: System Overview ==================== -->
+<div class="slide" id="s2">
+<div class="slide-section">Overview</div>
+<h2>System Overview</h2>
+<div class="content mt">
+<pre style="font-size:15px">
+┌──────────────────────────────────────────────────────────────┐
+│                     USER SPACE (Ring 3)                       │
+│                                                              │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐               │
+│  │   App    │    │  Serial  │    │  Future  │               │
+│  │ Threads  │    │  Driver  │    │ Services │               │
+│  └────┬─────┘    └────┬─────┘    └──────────┘               │
+├───────┼───────────────┼──────────────────────────────────────┤
+│       │   syscall     │   syscall         KERNEL (Ring 0)    │
+│  ┌────┴───────────────┴──────────────────────────────────┐   │
+│  │  Syscall │ IPC │ Scheduler │ Memory │ Interrupts      │   │
+│  └───────────────────────────────────────────────────────┘   │
+├──────────────────────────────────────────────────────────────┤
+│  CPU │ RAM │ Timer │ Serial UART │ PIC/APIC     HARDWARE     │
+└──────────────────────────────────────────────────────────────┘
+</pre>
+<div class="highlight mt">Design a <strong>minimal microkernel</strong> with strong isolation, controlled CPU transitions, message-based communication, and user-space drivers. Target: x86-64 on QEMU.</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 4: FR Index ==================== -->
+<div class="slide" id="s3">
+<div class="slide-section">Overview</div>
+<h2>Requirements Index</h2>
+<div class="content mt">
+<table class="grid-table">
+<tr><th>Area</th><th>IDs</th><th>Count</th><th>Priority</th></tr>
+<tr><td><strong>A. Boot & CPU Control</strong></td><td>FR01 – FR02</td><td>2</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>B. Privilege & Execution Control</strong></td><td>FR03 – FR04</td><td>2</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>C. Physical Memory</strong></td><td>FR05 – FR06</td><td>2</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>D. Virtual Memory & Isolation</strong></td><td>FR07 – FR11</td><td>5</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>E. Threading</strong></td><td>FR12 – FR15</td><td>4</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>F. Scheduling</strong></td><td>FR16 – FR17</td><td>2</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>G. IPC</strong></td><td>FR18 – FR20</td><td>3</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>H. Syscalls</strong></td><td>FR21</td><td>1</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>I. Interrupts & Hardware</strong></td><td>FR22 – FR23</td><td>2</td><td><span class="priority p0">P0</span></td></tr>
+<tr><td><strong>J. Drivers, Safety & Observability</strong></td><td>FR24 – FR25</td><td>2</td><td><span class="priority p0">P0</span></td></tr>
+</table>
+<p class="small mt">All 25 requirements are P0 (Phase 1). Deferred items are listed separately at the end.</p>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 5: Area A Title ==================== -->
+<div class="slide" id="s4">
+<div class="slide-section">Area A</div>
+<h2>A. Boot & CPU Control</h2>
+<p class="subtitle">Getting from power-on to kernel_main()</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR01</span> <span class="tag blue">FR02</span>
+</div>
+<pre class="mt" style="font-size:14px;max-width:700px">
+Power On → BIOS → GRUB → _start (32-bit) → Long Mode (64-bit) → kernel_main()
+</pre>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 6: FR01 ==================== -->
+<div class="slide" id="s5">
+<div class="slide-section">Area A — Boot</div>
+<h2>FR01 — Multiboot Boot</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR01</span> Multiboot2 Boot <span class="priority p0">P0</span></h4>
+<p>The kernel must boot via a Multiboot2-compliant bootloader (GRUB). The kernel binary must contain a valid Multiboot2 header so that GRUB can locate and load it.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Kernel ELF contains Multiboot2 header in first 32KB</li>
+<li>Header includes magic number <code>0xE85250D6</code></li>
+<li>Kernel must accept Multiboot2 info structure from bootloader</li>
+<li>Must parse memory map from Multiboot2 info</li>
+<li>Must record kernel load address from Multiboot2 info</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>GRUB recognizes and loads the kernel ELF without error</li>
+<li>Control reaches <code>_start</code> with EAX = <code>0x36D76289</code></li>
+<li>EBX points to a valid Multiboot2 info structure</li>
+<li>Memory map is accessible and contains at least one usable region</li>
+</ul>
+<p class="acceptance">Test: <code>qemu -kernel kernel.elf</code> boots without triple fault</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 7: FR02 ==================== -->
+<div class="slide" id="s6">
+<div class="slide-section">Area A — Boot</div>
+<h2>FR02 — Kernel Entry & Long Mode</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR02</span> Kernel Entry & CPU Initialization <span class="priority p0">P0</span></h4>
+<p>The kernel entry point (<code>_start</code>) must transition the CPU from 32-bit Protected Mode to 64-bit Long Mode, set up a valid stack, and transfer control to C code (<code>kernel_main</code>).</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Set up initial stack pointer (ESP) before any function calls</li>
+<li>Save Multiboot2 info pointer for later use</li>
+<li>Create initial page tables (identity map + higher-half)</li>
+<li>Enable PAE (CR4 bit 5)</li>
+<li>Enable Long Mode (EFER.LME, MSR 0xC0000080)</li>
+<li>Enable paging (CR0.PG)</li>
+<li>Load 64-bit GDT and far-jump to 64-bit code</li>
+<li>Set up 64-bit stack (RSP), clear BSS</li>
+<li>Call <code>kernel_main</code> with Multiboot2 info as argument</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>CPU is in 64-bit Long Mode after _start completes</li>
+<li>RSP points to a valid, aligned kernel stack</li>
+<li>BSS section is zeroed</li>
+<li>kernel_main() receives a valid pointer to Multiboot2 info</li>
+<li>Identity mapping covers at least the first 2MB</li>
+<li>Higher-half mapping at 0xFFFF800000000000 is functional</li>
+</ul>
+<p class="acceptance">Test: kernel_main prints "Hello" to serial without faulting</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 8: Area B Title ==================== -->
+<div class="slide" id="s7">
+<div class="slide-section">Area B</div>
+<h2>B. Privilege & Execution Control</h2>
+<p class="subtitle">Enforcing the Ring 0 / Ring 3 boundary</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR03</span> <span class="tag blue">FR04</span>
+</div>
+<pre class="mt" style="font-size:14px;max-width:700px">
+Ring 3 (User) ──syscall──► Ring 0 (Kernel) ──sysret──► Ring 3 (User)
+                              │
+                         CPU enforces:
+                         • no I/O port access from Ring 3
+                         • no privileged instruction from Ring 3
+                         • no kernel memory access from Ring 3
+</pre>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 9: FR03 ==================== -->
+<div class="slide" id="s8">
+<div class="slide-section">Area B — Privilege</div>
+<h2>FR03 — Privilege Enforcement</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR03</span> CPU Privilege Enforcement <span class="priority p0">P0</span></h4>
+<p>The kernel must run in Ring 0 and all user processes must run in Ring 3. The CPU's hardware privilege mechanism must enforce this separation.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>GDT must define separate code/data segments for Ring 0 and Ring 3</li>
+<li>TSS must be configured with RSP0 (kernel stack for Ring 3→0 transitions)</li>
+<li>User code must execute with CPL=3</li>
+<li>Kernel code must execute with CPL=0</li>
+<li>Privileged instructions (CLI, STI, IN, OUT, MOV CR3, LGDT, LIDT) must fault when executed from Ring 3</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>GDT loaded with null, kernel CS/DS, user CS/DS, and TSS entries</li>
+<li>TSS.rsp0 is updated on every context switch</li>
+<li>User thread executing <code>cli</code> triggers a General Protection fault (#GP)</li>
+<li>User thread executing <code>in al, 0x3F8</code> triggers #GP</li>
+<li>Kernel can execute all privileged instructions without fault</li>
+</ul>
+<p class="acceptance">Test: user thread runs privileged instruction → fault → thread killed → kernel continues</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 10: FR04 ==================== -->
+<div class="slide" id="s9">
+<div class="slide-section">Area B — Privilege</div>
+<h2>FR04 — Syscall Handling</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR04</span> Syscall Entry & Return <span class="priority p0">P0</span></h4>
+<p>The kernel must provide a controlled mechanism for user threads to request kernel services. The transition must validate inputs, switch stacks, and restore context on return.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Use x86-64 <code>syscall</code>/<code>sysret</code> instructions</li>
+<li>Configure MSRs: STAR, LSTAR, SFMASK</li>
+<li>Syscall number passed in RAX</li>
+<li>Arguments in RDI, RSI, RDX, R10</li>
+<li>Return value in RAX</li>
+<li>Kernel must save/restore user context</li>
+<li>Kernel must switch to thread's kernel stack on entry</li>
+<li>Kernel must validate all user-provided pointers and arguments</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>User calls <code>syscall</code> → arrives at kernel dispatch</li>
+<li>Invalid syscall number → returns error code</li>
+<li>Pointer outside user address range → returns error</li>
+<li>After syscall, user thread resumes at correct instruction</li>
+<li>All user registers (except RAX) are preserved</li>
+</ul>
+<p class="acceptance">Test: user thread calls SYS_YIELD → kernel schedules → user resumes correctly</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 11: Area C Title ==================== -->
+<div class="slide" id="s10">
+<div class="slide-section">Area C</div>
+<h2>C. Physical Memory Management</h2>
+<p class="subtitle">Tracking and allocating real RAM frames</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR05</span> <span class="tag blue">FR06</span>
+<span class="tag orange">NEW in v3.0</span>
+</div>
+<div class="highlight mt">This area was missing in FRD v2.0. Without physical memory management, the kernel cannot create page tables, allocate stacks, or manage address spaces.</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 12: FR05 ==================== -->
+<div class="slide" id="s11">
+<div class="slide-section">Area C — Physical Memory</div>
+<h2>FR05 — Physical Frame Tracking</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR05</span> Physical Memory Discovery & Tracking <span class="priority p0">P0</span></h4>
+<p>The kernel must discover available physical memory from the Multiboot2 memory map and maintain a data structure that tracks which 4KB physical frames are free or allocated.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Parse Multiboot2 memory map to identify usable RAM regions</li>
+<li>Mark frames occupied by kernel code/data as "used"</li>
+<li>Mark BIOS/reserved regions as "used"</li>
+<li>Track all remaining frames as "free"</li>
+<li>Frame size: 4096 bytes (4KB), page-aligned</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>After initialization, free frame count > 0</li>
+<li>Kernel code frames are marked used (not allocatable)</li>
+<li>Reserved/MMIO regions are never returned as free</li>
+<li>Total tracked memory matches Multiboot2 reported RAM</li>
+</ul>
+<p class="acceptance">Test: print free frame count after init → matches expected value from memory map</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 13: FR06 ==================== -->
+<div class="slide" id="s12">
+<div class="slide-section">Area C — Physical Memory</div>
+<h2>FR06 — Physical Frame Allocation</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR06</span> Frame Allocate & Free <span class="priority p0">P0</span></h4>
+<p>The kernel must provide operations to allocate a free physical frame and to return an allocated frame to the free pool.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li><code>alloc_frame()</code> — returns physical address of a free 4KB frame, marks it used</li>
+<li><code>free_frame(addr)</code> — marks a used frame as free</li>
+<li>Allocation of zero available frames must return an error (not crash)</li>
+<li>Double-free must be detectable (debug builds)</li>
+<li>Returned frames must be 4KB-aligned</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Allocate N frames → free count decreases by N</li>
+<li>Free N frames → free count increases by N</li>
+<li>Allocate when empty → returns NULL/error</li>
+<li>All returned addresses are 4KB-aligned</li>
+<li>No frame is returned twice from consecutive allocs</li>
+</ul>
+<p class="acceptance">Test: alloc 100 frames, verify unique addresses, free all, alloc again</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 14: Area D Title ==================== -->
+<div class="slide" id="s13">
+<div class="slide-section">Area D</div>
+<h2>D. Virtual Memory & Isolation</h2>
+<p class="subtitle">Address spaces, page tables, and memory protection</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR07</span> <span class="tag blue">FR08</span> <span class="tag blue">FR09</span> <span class="tag blue">FR10</span> <span class="tag blue">FR11</span>
+</div>
+<pre class="mt" style="font-size:14px;max-width:800px">
+Process A                           Process B
+┌────────────────┐                 ┌────────────────┐
+│ User memory A  │  ← CR3_A       │ User memory B  │  ← CR3_B
+│ (isolated)     │                 │ (isolated)     │
+├────────────────┤                 ├────────────────┤
+│ Kernel (shared)│ ← same mapping │ Kernel (shared)│
+└────────────────┘                 └────────────────┘
+</pre>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 15: FR07 ==================== -->
+<div class="slide" id="s14">
+<div class="slide-section">Area D — Virtual Memory</div>
+<h2>FR07 — Independent Virtual Address Spaces</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR07</span> Per-Process Virtual Address Space <span class="priority p0">P0</span></h4>
+<p>Each process must have its own independent virtual address space. The kernel must support creating, switching, and destroying address spaces.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Each address space has its own PML4 (page table root)</li>
+<li>Kernel must be able to create a new address space</li>
+<li>Kernel must be able to switch active address space (load CR3)</li>
+<li>Kernel must be able to destroy an address space (free all associated frames)</li>
+<li>Address spaces must have unique identifiers</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Creating two address spaces → they have different PML4 physical addresses</li>
+<li>Switching address space → CR3 changes</li>
+<li>Mapping virtual address V to physical P in space A → V resolves to P in space A</li>
+<li>Same virtual address V in space B → resolves to different physical address</li>
+</ul>
+<p class="acceptance">Test: create 2 spaces, map same VA to different PAs, switch, verify</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 16: FR08 ==================== -->
+<div class="slide" id="s15">
+<div class="slide-section">Area D — Virtual Memory</div>
+<h2>FR08 — Memory Isolation</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR08</span> Inter-Process Memory Isolation <span class="priority p0">P0</span></h4>
+<p>The kernel must guarantee that no process can access another process's memory, and no user process can access kernel memory.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>User pages must have U/S bit = 1 (user accessible)</li>
+<li>Kernel pages must have U/S bit = 0 (supervisor only)</li>
+<li>User access to kernel-mapped address → page fault</li>
+<li>User access to unmapped address → page fault</li>
+<li>Separate page tables prevent cross-process access</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>User thread reads kernel address → #PF → thread killed → kernel continues</li>
+<li>User thread writes kernel address → #PF → thread killed → kernel continues</li>
+<li>User thread accesses address 0x0 (NULL) → #PF → thread killed</li>
+<li>Thread in space A cannot read memory belonging to space B</li>
+</ul>
+<p class="acceptance">Test: user thread dereferences kernel pointer → fault → thread killed</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 17: FR09 ==================== -->
+<div class="slide" id="s16">
+<div class="slide-section">Area D — Virtual Memory</div>
+<h2>FR09 — Page Table Management</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR09</span> Page Table Map / Unmap <span class="priority p0">P0</span></h4>
+<p>The kernel must be able to map a virtual address to a physical frame and unmap it, in any address space.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li><code>map(vaddr, paddr, flags)</code> — create PTE mapping</li>
+<li><code>unmap(vaddr)</code> — remove PTE, invalidate TLB entry</li>
+<li>Flags: read-only, read-write, user/supervisor, no-execute</li>
+<li>Intermediate page table levels (PDPT, PD, PT) must be allocated on demand</li>
+<li>TLB must be flushed when mappings change (<code>invlpg</code>)</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Map VA → PA → read VA → get data at PA</li>
+<li>Unmap VA → read VA → page fault</li>
+<li>Map VA as read-only → write VA → page fault</li>
+<li>Map VA as NX → execute VA → page fault</li>
+<li>Map VA as supervisor-only → user access → page fault</li>
+</ul>
+<p class="acceptance">Test: map, read, unmap, read → fault</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 18: FR10 ==================== -->
+<div class="slide" id="s17">
+<div class="slide-section">Area D — Virtual Memory</div>
+<h2>FR10 — Kernel Memory Protection</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR10</span> Higher-Half Kernel Mapping <span class="priority p0">P0</span></h4>
+<p>Kernel code and data must be mapped in the higher half of the virtual address space, shared across all address spaces, and protected from user access.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Kernel mapped starting at <code>0xFFFF800000000000</code></li>
+<li>Kernel mapping present in every address space's PML4</li>
+<li>Kernel pages: U/S = 0, so Ring 3 cannot access</li>
+<li>Kernel code pages: NX = 0 (executable)</li>
+<li>Kernel data pages: NX = 1 (not executable)</li>
+<li>First page (address 0x0) must remain unmapped (NULL guard)</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>After switching to any address space, kernel code still runs correctly</li>
+<li>Kernel can access its own data via higher-half addresses</li>
+<li>User code at any address < 0x0000800000000000 cannot read kernel memory</li>
+<li>NULL dereference (read or write at address 0) → page fault</li>
+</ul>
+<p class="acceptance">Test: switch CR3 to user space → kernel continues → switch back → still works</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 19: FR11 ==================== -->
+<div class="slide" id="s18">
+<div class="slide-section">Area D — Virtual Memory</div>
+<h2>FR11 — Page Fault Handling</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR11</span> Page Fault Handler <span class="priority p0">P0</span></h4>
+<p>The kernel must handle page fault exceptions (vector 14). In Phase 1, all user page faults terminate the faulting thread. The handler must not crash the kernel.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Phase 1 Requirements</h3>
+<ul class="check">
+<li>Register handler for IDT vector 14</li>
+<li>Read faulting address from CR2</li>
+<li>Read error code (pushed by CPU): P, W/R, U/S bits</li>
+<li>If fault from user mode → kill thread, log fault details</li>
+<li>If fault from kernel mode → kernel panic</li>
+</ul>
+</div>
+<div class="col">
+<h3>Phase 2 (Deferred)</h3>
+<ul class="warn">
+<li>Deliver page fault to user-space pager via IPC</li>
+<li>Pager resolves fault (demand paging, swap)</li>
+<li>Kernel resumes faulting thread if pager succeeds</li>
+</ul>
+<h3 style="margin-top:12px">Acceptance Criteria</h3>
+<ul>
+<li>User null deref → thread killed → kernel continues</li>
+<li>Kernel null deref → panic with register dump</li>
+</ul>
+<p class="acceptance">Test: user touches unmapped address → fault logged → thread gone → scheduler runs</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 20: Area E Title ==================== -->
+<div class="slide" id="s19">
+<div class="slide-section">Area E</div>
+<h2>E. Threading</h2>
+<p class="subtitle">Execution contexts, lifecycle, and context switching</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR12</span> <span class="tag blue">FR13</span> <span class="tag blue">FR14</span> <span class="tag blue">FR15</span>
+</div>
+<div class="highlight mt">Thread = execution context (registers + stack + state). Address Space = memory ownership. A thread does NOT own its page tables — the address space does.</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 21: FR12 ==================== -->
+<div class="slide" id="s20">
+<div class="slide-section">Area E — Threading</div>
+<h2>FR12 — Thread Creation</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR12</span> Create Execution Thread <span class="priority p0">P0</span></h4>
+<p>The kernel must be able to create new threads. Each thread has its own registers, kernel stack, user stack, and initial state.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Allocate unique thread ID</li>
+<li>Allocate kernel stack (for syscall/interrupt handling)</li>
+<li>Set initial instruction pointer to entry function</li>
+<li>Set initial stack pointer to allocated user stack</li>
+<li>Associate thread with an address space</li>
+<li>Set initial state to RUNNABLE</li>
+<li>Enqueue in scheduler's run queue</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Created thread has unique ID ≠ any existing thread</li>
+<li>Thread starts executing at specified entry point</li>
+<li>Thread runs in specified address space</li>
+<li>Thread appears in run queue after creation</li>
+<li>Creating a thread does not disrupt currently running thread</li>
+</ul>
+<p class="acceptance">Test: create thread with entry=test_func → scheduler eventually runs it → output observed</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 22: FR13 ==================== -->
+<div class="slide" id="s21">
+<div class="slide-section">Area E — Threading</div>
+<h2>FR13 — Thread States</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR13</span> Thread State Model <span class="priority p0">P0</span></h4>
+<p>Every thread must be in exactly one of three states at all times. State transitions must follow the defined state machine.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>States</h3>
+<table class="grid-table">
+<tr><th>State</th><th>Meaning</th><th>Location</th></tr>
+<tr><td><span class="tag green">RUNNING</span></td><td>Executing on CPU</td><td>current_thread pointer</td></tr>
+<tr><td><span class="tag blue">RUNNABLE</span></td><td>Ready for CPU</td><td>Run queue</td></tr>
+<tr><td><span class="tag red">BLOCKED</span></td><td>Waiting for event</td><td>IPC send queue</td></tr>
+</table>
+</div>
+<div class="col">
+<h3>Valid Transitions</h3>
+<ul class="check">
+<li>RUNNABLE → RUNNING (scheduler picks thread)</li>
+<li>RUNNING → RUNNABLE (preemption or yield)</li>
+<li>RUNNING → BLOCKED (IPC send/recv with no partner)</li>
+<li>BLOCKED → RUNNABLE (partner arrives, wakeup)</li>
+</ul>
+<h3 style="margin-top:12px">Invalid Transitions</h3>
+<ul class="cross">
+<li>BLOCKED → RUNNING (must go through RUNNABLE)</li>
+<li>RUNNABLE → BLOCKED (must be RUNNING first)</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 23: FR14 ==================== -->
+<div class="slide" id="s22">
+<div class="slide-section">Area E — Threading</div>
+<h2>FR14 — Context Switching</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR14</span> Save & Restore Execution Context <span class="priority p0">P0</span></h4>
+<p>The kernel must be able to save the full execution context of the current thread and restore the context of another thread, so each thread runs as if it were never interrupted.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Save callee-saved registers: RBX, RBP, R12, R13, R14, R15</li>
+<li>Save/restore RSP (stack pointer)</li>
+<li>CPU automatically saves/restores: RIP, CS, RFLAGS, RSP, SS (interrupt frame)</li>
+<li>Update TSS.rsp0 to new thread's kernel stack top</li>
+<li>If address space differs: load new CR3</li>
+<li>Interrupts must be disabled during switch</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Thread A runs → timer → switch to B → timer → switch to A → A continues from exact point</li>
+<li>Thread's local variables on stack are preserved across switch</li>
+<li>All registers restored to pre-switch values</li>
+<li>No stack corruption after 1000+ context switches</li>
+</ul>
+<p class="acceptance">Test: two threads increment separate counters → both reach expected values</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 24: FR15 ==================== -->
+<div class="slide" id="s23">
+<div class="slide-section">Area E — Threading</div>
+<h2>FR15 — Thread Destruction</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR15</span> Thread Exit & Cleanup <span class="priority p0">P0</span> <span class="tag orange">NEW in v3.0</span></h4>
+<p>The kernel must support thread termination. When a thread exits or is killed, all resources it holds must be properly released.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Thread can voluntarily exit via <code>SYS_EXIT</code></li>
+<li>Kernel can kill thread on unrecoverable fault</li>
+<li>On death: remove from run queue or IPC queue</li>
+<li>On death: free kernel stack</li>
+<li>On death: wake threads blocked trying to send to this thread (with error)</li>
+<li>If last thread in address space → destroy address space</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Thread calls SYS_EXIT → never scheduled again</li>
+<li>Kernel stack memory is reclaimed</li>
+<li>Thread blocked sending to dead thread → unblocked with error code</li>
+<li>Thread ID is not reused immediately (or never)</li>
+<li>Scheduler handles thread death during its timeslice</li>
+</ul>
+<p class="acceptance">Test: create thread → it exits → memory freed → no dangling references</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 25: Area F Title ==================== -->
+<div class="slide" id="s24">
+<div class="slide-section">Area F</div>
+<h2>F. Scheduling</h2>
+<p class="subtitle">Deciding which thread runs next</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR16</span> <span class="tag blue">FR17</span>
+</div>
+<pre class="mt" style="font-size:15px;max-width:700px">
+Timer fires → save current → pick next from queue → restore next → run
+                                    │
+                              FIFO (Round Robin)
+</pre>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 26: FR16 ==================== -->
+<div class="slide" id="s25">
+<div class="slide-section">Area F — Scheduling</div>
+<h2>FR16 — Round Robin Scheduler</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR16</span> Round Robin Scheduling <span class="priority p0">P0</span></h4>
+<p>The kernel must schedule threads using a Round Robin policy. Each thread gets an equal timeslice. Preemption is driven by the hardware timer interrupt.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>FIFO run queue: enqueue at tail, dequeue from head</li>
+<li>Timer interrupt triggers schedule decision</li>
+<li>Current thread's timeslice expires → enqueue at tail, pick head</li>
+<li>Thread can voluntarily yield (SYS_YIELD)</li>
+<li>Blocking (IPC) removes thread from run queue entirely</li>
+<li>Wakeup inserts thread at tail of run queue</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>3 threads → each gets roughly equal CPU time</li>
+<li>Thread yields → next thread runs immediately</li>
+<li>Thread blocks on IPC → skipped, next RUNNABLE runs</li>
+<li>Thread wakes from IPC → appears at tail of queue</li>
+<li>No thread starvation (all RUNNABLE threads eventually run)</li>
+</ul>
+<p class="acceptance">Test: 3 threads print IDs → output shows interleaved, fair scheduling</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 27: FR17 ==================== -->
+<div class="slide" id="s26">
+<div class="slide-section">Area F — Scheduling</div>
+<h2>FR17 — Idle Thread</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR17</span> Idle Thread <span class="priority p0">P0</span> <span class="tag orange">NEW in v3.0</span></h4>
+<p>The system must have an idle thread that runs when no other thread is RUNNABLE. The idle thread puts the CPU in a low-power state until the next interrupt.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Idle thread is created at boot, always exists</li>
+<li>Idle thread runs only when run queue is empty</li>
+<li>Idle thread executes <code>hlt</code> in a loop</li>
+<li>Idle thread must be interruptible (IF=1)</li>
+<li>Idle thread is never killed or destroyed</li>
+<li>Idle thread does not count toward thread scheduling fairness</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>All threads block on IPC → idle thread runs → CPU halts</li>
+<li>Timer interrupt fires → idle thread yields → if thread woke, it runs</li>
+<li>System does not crash or busy-loop when no work exists</li>
+<li>CPU power consumption drops during idle (measurable in QEMU via host CPU usage)</li>
+</ul>
+<p class="acceptance">Test: all threads exit → idle thread runs → system stable → no CPU spin</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 28: Area G Title ==================== -->
+<div class="slide" id="s27">
+<div class="slide-section">Area G</div>
+<h2>G. Inter-Process Communication (IPC)</h2>
+<p class="subtitle">The microkernel's core communication mechanism</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR18</span> <span class="tag blue">FR19</span> <span class="tag blue">FR20</span>
+</div>
+<div class="highlight mt">In a microkernel, IPC performance = system performance. Every driver call, every service request, every interrupt delivery goes through IPC.</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 29: FR18 ==================== -->
+<div class="slide" id="s28">
+<div class="slide-section">Area G — IPC</div>
+<h2>FR18 — Synchronous IPC</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR18</span> Synchronous Send & Receive <span class="priority p0">P0</span></h4>
+<p>The kernel must provide synchronous IPC primitives: <code>send()</code> and <code>recv()</code>. Both operations block the calling thread if the communication cannot complete immediately.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Send Requirements</h3>
+<ul class="check">
+<li><code>send(target_tid, msg)</code></li>
+<li>If receiver is blocked in recv() → transfer immediately, wake receiver</li>
+<li>If receiver is NOT in recv() → block sender, enqueue on receiver's send_queue</li>
+<li>Message is copied (not pointer-shared)</li>
+<li>Sender does not resume until message is delivered</li>
+</ul>
+</div>
+<div class="col">
+<h3>Receive Requirements</h3>
+<ul class="check">
+<li><code>recv(buffer)</code></li>
+<li>If sender is queued → dequeue, copy message to buffer, wake sender</li>
+<li>If no sender queued → block receiver</li>
+<li>Receiver buffer must be validated (in user address space)</li>
+<li>If message > buffer → return error, no truncation</li>
+</ul>
+<p class="acceptance">Test: thread A sends to B → B receives → message content matches</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 30: FR19 ==================== -->
+<div class="slide" id="s29">
+<div class="slide-section">Area G — IPC</div>
+<h2>FR19 — IPC Queues & Message Format</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR19</span> IPC Queue Model & Fixed Messages <span class="priority p0">P0</span></h4>
+<p>Each thread that can receive messages owns a sender queue. Messages are fixed-size (64 bytes) and stored inside the blocked sender's thread struct.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Queue Requirements</h3>
+<ul class="check">
+<li>Multiple senders can queue on one receiver</li>
+<li>Receiver's <code>send_queue</code> is a linked list of blocked sender threads</li>
+<li>Each sender has <code>waiting_for</code> pointing to receiver</li>
+<li>FIFO order: first sender to arrive is first to be dequeued</li>
+<li>Dequeued sender is set to RUNNABLE and enqueued in run queue</li>
+</ul>
+</div>
+<div class="col">
+<h3>Message Requirements</h3>
+<ul class="check">
+<li>Fixed size: 64 bytes total</li>
+<li>Fields: sender_id (int), msg_type (int), data (56 bytes)</li>
+<li>Message stored inside <code>thread.pending_msg</code></li>
+<li>No kernel heap allocation for messages</li>
+<li>No global IPC buffer pool</li>
+</ul>
+<p class="acceptance">Test: 3 senders → 1 receiver → receiver gets all 3 messages in FIFO order</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 31: FR20 ==================== -->
+<div class="slide" id="s30">
+<div class="slide-section">Area G — IPC</div>
+<h2>FR20 — Deferred Wakeup</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR20</span> Deferred Wakeup Policy <span class="priority p0">P0</span></h4>
+<p>When an IPC operation wakes a blocked thread, the kernel must not immediately switch to that thread. The woken thread is enqueued as RUNNABLE, and the scheduler decides when it actually runs.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Wakeup = state change (BLOCKED → RUNNABLE) + enqueue in run queue</li>
+<li>Wakeup does NOT trigger immediate context switch</li>
+<li>Scheduler makes all scheduling decisions</li>
+<li>The currently running thread continues its timeslice after waking another thread</li>
+</ul>
+</div>
+<div class="col">
+<h3>Why This Matters</h3>
+<ul>
+<li>Keeps scheduler as single authority for CPU allocation</li>
+<li>Prevents IPC from bypassing fairness</li>
+<li>Simplifies reasoning about preemption</li>
+<li>Avoids nested context switches</li>
+</ul>
+<p class="acceptance">Test: A recv() wakes B → A continues running → B runs later on its own timeslice</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 32: Area H ==================== -->
+<div class="slide" id="s31">
+<div class="slide-section">Area H</div>
+<h2>H. Syscall Interface</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR21</span> Syscall Table <span class="priority p0">P0</span></h4>
+<p>The kernel must expose a minimal, well-defined set of syscalls. Each syscall has a fixed number, defined argument registers, and documented behavior.</p>
+</div>
+<table class="grid-table mt">
+<tr><th>Number</th><th>Name</th><th>Arguments</th><th>Behavior</th></tr>
+<tr><td>0</td><td><code>SYS_SEND</code></td><td>RDI=target_tid, RSI=msg_ptr</td><td>Send IPC message (blocking)</td></tr>
+<tr><td>1</td><td><code>SYS_RECV</code></td><td>RDI=buf_ptr</td><td>Receive IPC message (blocking)</td></tr>
+<tr><td>2</td><td><code>SYS_YIELD</code></td><td>(none)</td><td>Voluntarily give up timeslice</td></tr>
+<tr><td>3</td><td><code>SYS_EXIT</code></td><td>RDI=exit_code</td><td>Terminate calling thread</td></tr>
+<tr><td>4</td><td><code>SYS_CREATE</code></td><td>RDI=entry, RSI=stack_ptr</td><td>Create new thread in same address space</td></tr>
+<tr><td>5</td><td><code>SYS_MAP_IO</code></td><td>RDI=port, RSI=size</td><td>Grant I/O port access to calling thread</td></tr>
+<tr><td>6</td><td><code>SYS_IRQ_REG</code></td><td>RDI=irq_num</td><td>Register thread for interrupt notifications</td></tr>
+<tr><td>7</td><td><code>SYS_IRQ_ACK</code></td><td>RDI=irq_num</td><td>Acknowledge interrupt, unmask IRQ line</td></tr>
+</table>
+<p class="acceptance mt">Test: each syscall with valid args → expected behavior. Each with invalid args → error returned, no crash.</p>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 33: Area I Title ==================== -->
+<div class="slide" id="s32">
+<div class="slide-section">Area I</div>
+<h2>I. Interrupts & Hardware</h2>
+<p class="subtitle">Hardware events, IDT, timer, and preemption</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR22</span> <span class="tag blue">FR23</span>
+</div>
+<pre class="mt" style="font-size:14px;max-width:700px">
+Hardware ──IRQ──► PIC/APIC ──► CPU ──IDT──► Kernel Handler
+                                               │
+                                          ┌────┴────┐
+                                          │         │
+                                       Timer    Device IRQ
+                                          │         │
+                                      Schedule  IPC notify
+                                                to driver
+</pre>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 34: FR22 ==================== -->
+<div class="slide" id="s33">
+<div class="slide-section">Area I — Interrupts</div>
+<h2>FR22 — Interrupt Handling</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR22</span> IDT & Interrupt Dispatch <span class="priority p0">P0</span></h4>
+<p>The kernel must set up the Interrupt Descriptor Table (IDT) and handle all CPU exceptions and hardware interrupts. Unhandled interrupts must not crash the kernel.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Initialize IDT with 256 entries</li>
+<li>Register handlers for exceptions 0–31</li>
+<li>Register handlers for hardware IRQs (remapped to vectors 32+)</li>
+<li>Initialize PIC (8259) or APIC for interrupt routing</li>
+<li>Double fault (vector 8) must use IST (separate stack)</li>
+<li>All handlers must send EOI (End of Interrupt) to PIC/APIC</li>
+<li>Unknown/spurious interrupts must be safely ignored</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Division by zero in user → exception caught → thread killed</li>
+<li>Timer interrupt fires at expected frequency</li>
+<li>Serial IRQ arrives → handler runs → data available</li>
+<li>Stack overflow in kernel → double fault on IST stack → panic (not triple fault)</li>
+<li>Spurious IRQ → ignored, no crash</li>
+</ul>
+<p class="acceptance">Test: enable interrupts → timer fires → handler runs → system continues</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 35: FR23 ==================== -->
+<div class="slide" id="s34">
+<div class="slide-section">Area I — Interrupts</div>
+<h2>FR23 — Hardware Timer</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR23</span> Periodic Timer Interrupt <span class="priority p0">P0</span></h4>
+<p>The kernel must configure a hardware timer to generate periodic interrupts. These interrupts drive the scheduler's preemption mechanism.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Configure PIT (Programmable Interval Timer) or APIC timer</li>
+<li>Timer fires at a configurable frequency (initial: ~100 Hz)</li>
+<li>Each timer tick increments a global tick counter</li>
+<li>Timer handler invokes scheduler to check timeslice</li>
+<li>Timer is the primary preemption source</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Timer interrupt fires repeatedly at configured rate</li>
+<li>Global tick counter increments monotonically</li>
+<li>A CPU-bound thread is preempted after its timeslice</li>
+<li>Timer works correctly even when switching between threads</li>
+</ul>
+<p class="acceptance">Test: single thread loops forever → timer fires → tick count increases → observable on serial</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 36: Area J Title ==================== -->
+<div class="slide" id="s35">
+<div class="slide-section">Area J</div>
+<h2>J. Drivers, Safety & Observability</h2>
+<p class="subtitle">User-space drivers, fault isolation, and debugging</p>
+<div class="mt" style="margin-top:30px">
+<span class="tag blue">FR24</span> <span class="tag blue">FR25</span>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 37: FR24 ==================== -->
+<div class="slide" id="s36">
+<div class="slide-section">Area J — Drivers & Safety</div>
+<h2>FR24 — User-Space Driver Model</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR24</span> Driver Architecture & Interrupt Forwarding <span class="priority p0">P0</span></h4>
+<p>Device drivers must run as user-space processes. The kernel must provide mechanisms for drivers to access I/O ports and receive hardware interrupt notifications via IPC.</p>
+</div>
+<div class="two-col mt">
+<div class="col">
+<h3>Requirements</h3>
+<ul class="check">
+<li>Drivers run in Ring 3 (user space)</li>
+<li>Driver requests I/O port access via SYS_MAP_IO</li>
+<li>Kernel grants per-thread I/O port permission (via IOPB in TSS)</li>
+<li>Driver registers for IRQ via SYS_IRQ_REG</li>
+<li>When IRQ fires: kernel masks IRQ, sends IPC notification to registered thread</li>
+<li>Driver acknowledges via SYS_IRQ_ACK → kernel unmasks IRQ</li>
+<li>First driver: Serial (UART, COM1, base 0x3F8, IRQ 4)</li>
+</ul>
+</div>
+<div class="col">
+<h3>Acceptance Criteria</h3>
+<ul>
+<li>Serial driver process runs in user space</li>
+<li>Serial driver can read/write COM1 ports</li>
+<li>Serial input triggers IRQ → kernel IPC → driver receives byte</li>
+<li>Driver crash → kernel continues, other threads unaffected</li>
+<li>No driver can access ports it hasn't been granted</li>
+</ul>
+<p class="acceptance">Test: type in QEMU serial → driver receives chars → echoes back</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 38: FR25 ==================== -->
+<div class="slide" id="s37">
+<div class="slide-section">Area J — Drivers & Safety</div>
+<h2>FR25 — Fault Isolation, Panic & Logging</h2>
+<div class="content mt">
+<div class="fr-box">
+<h4><span class="fr-id">FR25</span> System Stability & Observability <span class="priority p0">P0</span></h4>
+<p>The kernel must survive any user-space fault, halt safely on kernel faults, and provide serial output for debugging.</p>
+</div>
+<div class="three-col mt">
+<div class="col">
+<h3>Fault Isolation</h3>
+<ul class="check">
+<li>User process crash must not affect kernel</li>
+<li>User process crash must not affect other processes</li>
+<li>Killed thread's IPC dependents must be notified (error)</li>
+</ul>
+</div>
+<div class="col">
+<h3>Kernel Panic</h3>
+<ul class="check">
+<li>On unrecoverable kernel error: disable interrupts</li>
+<li>Print error message to serial</li>
+<li>Print register dump (RIP, RSP, CR2, error code)</li>
+<li>Halt CPU in loop (never returns)</li>
+</ul>
+</div>
+<div class="col">
+<h3>Serial Logging</h3>
+<ul class="check">
+<li>Kernel outputs debug info on COM1 (0x3F8)</li>
+<li>Available from earliest boot (first init in kernel_main)</li>
+<li>Must work before any other subsystem</li>
+</ul>
+<p class="acceptance" style="margin-top:12px">Test: crash user thread → log on serial → kernel running</p>
+</div>
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 39: Deferred Requirements ==================== -->
+<div class="slide" id="s38">
+<div class="slide-section">Deferred</div>
+<h2>Deferred Requirements (Phase 2+)</h2>
+<div class="content mt">
+<table class="grid-table">
+<tr><th>ID</th><th>Name</th><th>Phase</th><th>Depends On</th></tr>
+<tr><td><span class="tag purple">D01</span></td><td>Demand Paging (user-space pager)</td><td>2</td><td>FR11 page fault handler</td></tr>
+<tr><td><span class="tag purple">D02</span></td><td>Priority Scheduling</td><td>3</td><td>FR16 scheduler</td></tr>
+<tr><td><span class="tag purple">D03</span></td><td>Filesystem Server</td><td>4</td><td>FR18 IPC, FR24 drivers</td></tr>
+<tr><td><span class="tag purple">D04</span></td><td>Network Stack Server</td><td>5</td><td>FR18 IPC, FR24 drivers</td></tr>
+<tr><td><span class="tag purple">D05</span></td><td>SMP (Multi-Core) Support</td><td>6</td><td>All Phase 1 FRs</td></tr>
+<tr><td><span class="tag purple">D06</span></td><td>Capability-Based Security</td><td>7</td><td>FR07 address spaces</td></tr>
+<tr><td><span class="tag purple">D07</span></td><td>IPC Deadlock Detection</td><td>3</td><td>FR18 IPC</td></tr>
+<tr><td><span class="tag purple">D08</span></td><td>Shared Memory IPC (large transfers)</td><td>3</td><td>FR07, FR18</td></tr>
+<tr><td><span class="tag purple">D09</span></td><td>Process Restart / Supervision</td><td>4</td><td>FR15, FR24</td></tr>
+<tr><td><span class="tag purple">D10</span></td><td>APIC Timer (replace PIT)</td><td>2</td><td>FR23 timer</td></tr>
+</table>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 40: Traceability ==================== -->
+<div class="slide" id="s39">
+<div class="slide-section">Traceability</div>
+<h2>FRD → LLD Traceability Matrix</h2>
+<div class="content mt">
+<table class="grid-table" style="font-size:14px">
+<tr><th>FR</th><th>LLD Section</th><th>Key Data Structure / Flow</th><th>Status</th></tr>
+<tr><td>FR01</td><td>Boot Sequence</td><td>Multiboot2 header, memory map parsing</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR02</td><td>Boot Sequence</td><td>_start assembly, long mode transition</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR03</td><td>GDT & TSS</td><td>GDT entries, TSS struct</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR04</td><td>Syscall Flow</td><td>MSR setup, syscall dispatch</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR05–06</td><td>Physical Memory</td><td>Bitmap allocator, pmm_init/alloc/free</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR07–10</td><td>Virtual Memory</td><td>address_space struct, map/unmap/switch</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR11</td><td>Page Fault</td><td>IDT[14] handler, CR2 read</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR12–13</td><td>Thread Model</td><td>thread struct, state enum</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR14</td><td>Context Switch</td><td>Register save/restore, iretq</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR15</td><td>Thread Lifecycle</td><td>thread_destroy, IPC cleanup</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR16–17</td><td>Scheduler</td><td>run_queue, idle thread</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR18–20</td><td>IPC Design</td><td>ipc_message, send_queue, cases 1-3</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR21</td><td>Syscall Table</td><td>Syscall numbers, register ABI</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR22–23</td><td>Interrupts</td><td>IDT, PIC init, timer handler</td><td><span class="tag green">Mapped</span></td></tr>
+<tr><td>FR24–25</td><td>Driver Model</td><td>IRQ→IPC flow, serial driver</td><td><span class="tag green">Mapped</span></td></tr>
+</table>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 41: Implementation Phases ==================== -->
+<div class="slide" id="s40">
+<div class="slide-section">Implementation</div>
+<h2>Implementation Phases (FR Coverage)</h2>
+<div class="content mt">
+<table class="grid-table">
+<tr><th>Phase</th><th>Milestone</th><th>FRs Covered</th><th>Testable Output</th></tr>
+<tr><td><span class="tag green">1</span></td><td>Boot + Serial</td><td>FR01, FR02, FR25 (serial)</td><td>"Hello" on serial console</td></tr>
+<tr><td><span class="tag green">2</span></td><td>GDT + IDT</td><td>FR03, FR22, FR23</td><td>Timer ticks on serial, exceptions handled</td></tr>
+<tr><td><span class="tag green">3</span></td><td>Physical Memory</td><td>FR05, FR06</td><td>Alloc/free frames, count printed</td></tr>
+<tr><td><span class="tag green">4</span></td><td>Virtual Memory</td><td>FR07, FR08, FR09, FR10, FR11</td><td>Map/unmap works, isolation verified</td></tr>
+<tr><td><span class="tag green">5</span></td><td>Threads + Scheduler</td><td>FR12, FR13, FR14, FR15, FR16, FR17</td><td>3 threads printing interleaved output</td></tr>
+<tr><td><span class="tag green">6</span></td><td>Syscalls</td><td>FR04, FR21</td><td>User thread calls SYS_YIELD from Ring 3</td></tr>
+<tr><td><span class="tag green">7</span></td><td>IPC</td><td>FR18, FR19, FR20</td><td>Two threads exchange messages</td></tr>
+<tr><td><span class="tag green">8</span></td><td>Serial Driver</td><td>FR24, FR25 (full)</td><td>User-space driver echoes serial input</td></tr>
+</table>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== SLIDE 42: Summary ==================== -->
+<div class="slide" id="s41">
+<div class="slide-section">Summary</div>
+<h2>FRD v3.0 — Summary</h2>
+<div class="content mt">
+<div class="three-col">
+<div class="col center">
+<div style="font-size:48px;font-weight:700;color:var(--green)">25</div>
+<p>Functional Requirements</p>
+<p class="small">All P0 (Phase 1)</p>
+</div>
+<div class="col center">
+<div style="font-size:48px;font-weight:700;color:var(--accent)">10</div>
+<p>Functional Areas</p>
+<p class="small">Boot → Drivers</p>
+</div>
+<div class="col center">
+<div style="font-size:48px;font-weight:700;color:var(--purple)">10</div>
+<p>Deferred Items</p>
+<p class="small">Phase 2–7</p>
+</div>
+</div>
+<div class="highlight green mt" style="margin-top:30px">
+<strong>Improvements over v2.0:</strong> Added physical memory management (FR05–06), idle thread (FR17), thread destruction (FR15), complete syscall table (FR21), precise acceptance criteria for every FR, traceability matrix to LLD.
+</div>
+<div class="highlight mt">
+<strong>Every FR has:</strong> unique ID, priority, clear requirements (SHALL statements), acceptance criteria, and a test case. Every FR maps to an LLD section. Every LLD section traces back to an FR.
+</div>
+</div>
+<div class="slide-num"></div>
+</div>
+
+<!-- ==================== NAVIGATION ==================== -->
+<div class="nav">
+<button onclick="go(-1)">← Prev</button>
+<button onclick="go(1)">Next →</button>
+</div>
+
+<script>
+const slides=document.querySelectorAll('.slide');
+let cur=0;
+function go(d){
+    slides[cur].classList.remove('active');
+    cur=Math.max(0,Math.min(slides.length-1,cur+d));
+    slides[cur].classList.add('active');
+    document.getElementById('progress').style.width=((cur+1)/slides.length*100)+'%';
+    updateNums();
+}
+function updateNums(){
+    slides.forEach((s,i)=>{
+        const n=s.querySelector('.slide-num');
+        if(n)n.textContent=(i+1)+' / '+slides.length;
+    });
+}
+document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' ')go(1);
+    if(e.key==='ArrowLeft')go(-1);
+    if(e.key==='Home'){slides[cur].classList.remove('active');cur=0;slides[0].classList.add('active');document.getElementById('progress').style.width=(1/slides.length*100)+'%';updateNums();}
+    if(e.key==='End'){slides[cur].classList.remove('active');cur=slides.length-1;slides[cur].classList.add('active');document.getElementById('progress').style.width='100%';updateNums();}
+});
+updateNums();
+document.getElementById('progress').style.width=(1/slides.length*100)+'%';
+</script>
+</body>
+</html>
